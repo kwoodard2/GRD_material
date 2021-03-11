@@ -1,0 +1,6 @@
+participant,seed,sort,image,final_img_pos,posX,posY
+subjCode117,17,Practice,table,[  72. -223.],72.0,-223.0
+subjCode117,17,Practice,bus,[-214. -372.],-214.0,-372.0
+subjCode117,17,Practice,car,[-500.  -74.],-500.0,-74.0
+subjCode117,17,Practice,squirrel,[ 501.  373.],501.0,373.0
+subjCode117,17,Practice,bird,[ 215.  373.],215.0,373.0

@@ -1,0 +1,6 @@
+participant,seed,sort,image,final_img_pos,posX,posY
+subjCode307,307,Practice,bus,[ 644.  373.],644.0,373.0
+subjCode307,307,Practice,car,[-643.  373.],-643.0,373.0
+subjCode307,307,Practice,bird,[-643. -372.],-643.0,-372.0
+subjCode307,307,Practice,table,[ 644. -372.],644.0,-372.0
+subjCode307,307,Practice,squirrel,[ 215.  -74.],215.0,-74.0

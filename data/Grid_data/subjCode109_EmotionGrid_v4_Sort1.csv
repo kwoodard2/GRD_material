@@ -1,0 +1,19 @@
+participant,seed,sort,image,final_img_pos,posX,posY
+subjCode109,9,Sort1,M07neut_c,[-643. -372.],-643.0,-372.0
+subjCode109,9,Sort1,M07surp_o,[ 644. -372.],644.0,-372.0
+subjCode109,9,Sort1,M07neut_o,[ 358. -223.],358.0,-223.0
+subjCode109,9,Sort1,M07fear_c,[-500. -372.],-500.0,-372.0
+subjCode109,9,Sort1,M07exc_o,[ 215. -223.],215.0,-223.0
+subjCode109,9,Sort1,M07hap_o,[ 501. -372.],501.0,-372.0
+subjCode109,9,Sort1,M07hap_c,[-214. -223.],-214.0,-223.0
+subjCode109,9,Sort1,M07sad_c,[  72. -223.],72.0,-223.0
+subjCode109,9,Sort1,M07calm_o,[ 358. -372.],358.0,-372.0
+subjCode109,9,Sort1,M07surp_c,[-357. -372.],-357.0,-372.0
+subjCode109,9,Sort1,M07sad_o,[ -71. -223.],-71.0,-223.0
+subjCode109,9,Sort1,M07fear_o,[-214. -372.],-214.0,-372.0
+subjCode109,9,Sort1,M07calm_c,[ -71. -372.],-71.0,-372.0
+subjCode109,9,Sort1,M07ang_o,[  72. -372.],72.0,-372.0
+subjCode109,9,Sort1,M07exc_c,[ 215. -372.],215.0,-372.0
+subjCode109,9,Sort1,M07disg_c,[-357. -223.],-357.0,-223.0
+subjCode109,9,Sort1,M07ang_c,[-500. -223.],-500.0,-223.0
+subjCode109,9,Sort1,M07disg_o,[-643. -223.],-643.0,-223.0

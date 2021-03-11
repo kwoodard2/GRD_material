@@ -1,0 +1,6 @@
+participant,seed,sort,image,final_img_pos,posX,posY
+subjCode108,8,Practice,bird,[ 72.  75.],72.0,75.0
+subjCode108,8,Practice,car,[  72. -372.],72.0,-372.0
+subjCode108,8,Practice,bus,[ 215. -372.],215.0,-372.0
+subjCode108,8,Practice,squirrel,[ 215.   75.],215.0,75.0
+subjCode108,8,Practice,table,[ 215.  -74.],215.0,-74.0

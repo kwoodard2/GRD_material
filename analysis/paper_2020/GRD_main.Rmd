@@ -1,0 +1,1348 @@
+---
+title: "Developmental changes in children’s representation of facial cues of emotion"
+author: "Anonymized for peer review"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+#knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+knitr::opts_chunk$set(
+                prompt  = FALSE,
+                cache   = FALSE,
+                echo = TRUE,
+                warning=F,
+                message=F)
+
+```
+
+```{r load packages and data, include=FALSE}
+library(tidyverse)
+library(here)
+library(cowplot)
+library(lme4)
+library(car)
+library(lmerTest)
+library(lmSupport)
+library(harrietr)
+library(ggdendro)
+library(ggimage)
+library(dendroextras)
+library(dendextend)
+library(corrplot)
+library(ggcorrplot)
+library(car)
+library(cluster)
+library(factoextra)
+library(vegan)
+library(fossil)
+source("Grid_helper_functions.R")
+theme_set(theme_cowplot())
+root_path <- here()
+```
+
+Analysis walkthrough for the paper 
+
+Anonymous Authors (in prep). Developmental changes in children’s representation of facial cues of emotion.
+
+For more background information and the underlying data, visit the OSF repository for this report: [OSF site](https://osf.io/7bkgp/)
+
+## Emotion Categories {.tabset}
+
+We first examined whether participants used common English language emotion categories (e.g., sad, happy, anger, disgust, fear, surprise, neutral, calm, excitement ) to structure their placement of facial cues. To do so, we computed the average distance between images that shared the same category label (e.g., the distance of one happy face to another happy face) versus images that had differing category labels (e.g., the distance of one happy face to a sad face) for each participant (see also Unger et al., 2016 for a similar approach). 
+
+```{r, warning=F,message=F}
+#read in data
+subj_dist_long <- read.csv(here(root_path,"analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
+
+#### Summarizing Distances ####
+
+#average distances across category types  within each participant
+avg_dist_cat_by_subj <- subj_dist_long %>%
+  group_by(subject, Age, Gender, age_bin,age_group,sort,category_pair) %>%
+  summarize(N=n(),avg_dist=mean(dist),ci_dist=qt(0.975, N-1)*sd(dist,na.rm=T)/sqrt(N))
+
+
+#### Adults & children comparison ####
+avg_dist_cat_by_subj <- avg_dist_cat_by_subj %>%
+  ungroup() %>%
+  mutate(AgeC=Age-mean(Age,na.rm=T),
+         category_pairC=ifelse(category_pair=="between",-0.5,0.5),
+         age_groupC=ifelse(age_group=="kids",-0.5,0.5),
+         sortC=ifelse(sort=="Sort1",-0.5,0.5))
+
+#### Summarizing Differences in distance - within-between ####
+
+#focus on differences in dist (same v. between categories)
+avg_dist_diff_cat_by_subj <- subj_dist_long %>%
+  group_by(subject, Age, Gender, age_bin,age_group,sort,category_pair) %>%
+  summarize(avg_dist=mean(dist,na.rm=T))  %>%
+  ungroup() %>%
+  group_by(subject, Age, Gender, age_bin,age_group,sort) %>%
+  pivot_wider(names_from=category_pair,values_from=avg_dist) %>%
+  mutate(avg_dist_diff=between-within) %>%
+  mutate(sort_name=ifelse(sort=="Sort1","Same Individual",ifelse(sort=="Sort2","Different Individuals","Practice"))) %>%
+  ungroup()
+
+#average across subjects  by age bin
+avg_dist_diff_cat_across_subj <- avg_dist_diff_cat_by_subj %>%
+  select(-between,-within) %>%
+  group_by(age_bin,age_group,sort,sort_name) %>%
+  summarize(N=n(),average_dist=mean(avg_dist_diff,na.rm=T),ci_dist=qt(0.975, N-1)*sd(avg_dist_diff,na.rm=T)/sqrt(N))
+
+#clean labels for plot
+age_names <- list(
+  '3 to 4'="3-year-olds",
+  '4 to 5'="4-year-olds",
+  '5 to 6'="5-year-olds",
+  '6 to 7'="6-year-olds",
+  'adults'="adults")
+age_labeller <- function(variable,value){
+  return(age_names[value])}
+```
+
+### Plot
+
+```{r}
+ggplot(filter(avg_dist_diff_cat_across_subj, sort!="Practice"),aes(x=sort_name,y=average_dist,fill=age_bin,color=age_bin, linetype=sort_name))+
+  geom_errorbar(aes(ymin=average_dist-ci_dist,ymax=average_dist+ci_dist),width=0,size=1)+
+  geom_point(size=5)+
+  facet_wrap(~age_bin,nrow=1, labeller = age_labeller, strip.position = c("bottom"))+
+  geom_hline(yintercept=0)+
+  theme(legend.position=c(.1,.8), legend.title = element_blank(),
+        legend.margin = margin(.5,.5,.5,.5,"cm"),
+        legend.background = element_rect(fill="white",size=0.6,
+                                         linetype="solid", colour ="black")) +
+  #theme(legend.position='top', legend.justification ='center')+
+  scale_color_manual(values=c("#8c510a","#bf812d","#80cdc1","#35978f","#01665e"))+
+  guides(color=FALSE) +
+  guides(fill=FALSE) +
+  #scale_y_continuous(breaks=c(0,0.1,0.2,0.3, 0.4, 0.5,0.6), limits=c(0,0.5))+
+  ylab("Sorting by Emotion Categories \nLow<----------------------------------->High")+
+  xlab("Age Group")+
+  labs(linetype = "Sorting Phase") +
+  theme(axis.line = element_blank(),
+    axis.text.x  = element_blank(),
+        axis.ticks.x= element_blank(),
+        axis.title.x = element_text(size=20,face="bold"),
+        axis.text.y =  element_text(size=18),
+        axis.title.y= element_text(size=18,face="bold"),
+        strip.text.x = element_text(size=18))
+```
+
+### Interaction with Block 
+
+```{r}
+# interaction between emotion category and sort
+m <- lmer(avg_dist~category_pairC*sortC+(1+category_pairC|subject),data=filter(avg_dist_cat_by_subj,sort!="Practice"))
+summary(m)
+confint(m, method="Wald")[5:8,]
+anova(m) #Satterthwaite's method
+```
+
+The full model above yields a singular fit, due to the high covariance between the random intercept and random slope. However, a model removing the covariance to avoid the singular fit warning yields virtually identical results.
+
+```{r}
+## model removing correlation between random intercept and slope 
+## to avoid singular fit yields equivalent results
+m <- lmer(avg_dist~category_pairC*sortC+(1+category_pairC||subject),data=filter(avg_dist_cat_by_subj,sort!="Practice"))
+summary(m)
+confint(m, method="Wald")[4:7,]
+anova(m)
+```
+
+### Children vs. Adults {.tabset}
+
+#### Age Group (Child vs. Adult)
+
+```{r}
+# Emotion Category: Children versus Adults
+m <- lmer(avg_dist~category_pairC*age_groupC+(1+category_pairC|subject),data=filter(avg_dist_cat_by_subj,sort!="Practice"))
+summary(m)
+confint(m, method="Wald")[5:8,]
+anova(m)
+```
+
+The full model above yields a singular fit, due to the high covariance between the random intercept and random slope. However, a model removing the covariance to avoid the singular fit warning yields virtually identical results.
+
+```{r}
+## model removing correlation between random intercept and slope 
+## to avoid singular fit yields equivalent results
+m <- lmer(avg_dist~category_pairC*age_groupC+(1+category_pairC||subject),data=filter(avg_dist_cat_by_subj,sort!="Practice"))
+summary(m)
+confint(m, method="Wald")[4:7,]
+anova(m)
+```
+
+#### Continuous Age (Children)
+
+```{r}
+#### Kids Only, Age continuous ####
+m <- lmer(avg_dist~AgeC*category_pairC+(1+category_pairC|subject),data=filter(avg_dist_cat_by_subj,age_group=="kids"&sort!="Practice"))
+summary(m) 
+confint(m,method="Wald")[5:8,]
+anova(m)
+```
+
+The full model above yields a singular fit, due to the high covariance between the random intercept and random slope. However, a model removing the covariance to avoid the singular fit warning yields virtually identical results.
+
+```{r}
+## model removing correlation between random intercept and slope 
+## to avoid singular fit yields equivalent results
+m <- lmer(avg_dist~AgeC*category_pairC+(1+category_pairC||subject),data=filter(avg_dist_cat_by_subj,age_group=="kids"&sort!="Practice"))
+summary(m) 
+confint(m,method="Wald")[4:7,]
+anova(m)
+```
+
+### Individual Age Groups {.tabset}
+
+#### 3-4 years
+```{r}
+#3-4 subgroup
+m <- lmer(avg_dist~category_pairC+(1+category_pairC|subject),data=filter(avg_dist_cat_by_subj,age_bin=="3 to 4"&sort!="Practice"))
+summary(m)
+confint(m,method="Wald")[5:6,]
+anova(m)
+```
+
+The full model above yields a singular fit, due to the high covariance between the random intercept and random slope. However, a model removing the covariance to avoid the singular fit warning yields virtually identical results.
+
+```{r}
+## model removing correlation between random intercept and slope 
+## to avoid singular fit yields equivalent results
+m <- lmer(avg_dist~category_pairC+(1+category_pairC||subject),data=filter(avg_dist_cat_by_subj,age_bin=="3 to 4"&sort!="Practice"))
+summary(m)
+confint(m,method="Wald")[4:5,]
+anova(m)
+```
+
+
+#### 4-5 years
+
+```{r}
+#4-5
+m <- lmer(avg_dist~category_pairC+(1+category_pairC|subject),data=filter(avg_dist_cat_by_subj,age_bin=="4 to 5"&sort!="Practice"))
+summary(m)
+confint(m,method="Wald")[5:6,]
+anova(m)
+```
+
+The full model above yields a singular fit, due to the high covariance between the random intercept and random slope. However, a model removing the covariance to avoid the singular fit warning yields virtually identical results.
+
+```{r}
+## model removing correlation between random intercept and slope 
+## to avoid singular fit yields equivalent results
+m <- lmer(avg_dist~category_pairC+(1+category_pairC||subject),data=filter(avg_dist_cat_by_subj,age_bin=="4 to 5"&sort!="Practice"))
+summary(m)
+confint(m,method="Wald")[4:5,]
+anova(m)
+```
+
+#### 5-6 years
+
+```{r}
+#5-6
+m <- lmer(avg_dist~category_pairC+(1+category_pairC|subject),data=filter(avg_dist_cat_by_subj,age_bin=="5 to 6"&sort!="Practice"))
+summary(m)
+confint(m,method="Wald")[5:6,]
+anova(m)
+```
+
+The full model above yields a singular fit, due to the high covariance between the random intercept and random slope. However, a model removing the covariance to avoid the singular fit warning yields virtually identical results.
+
+```{r}
+## model removing correlation between random intercept and slope 
+## to avoid singular fit yields equivalent results
+m <- lmer(avg_dist~category_pairC+(1+category_pairC||subject),data=filter(avg_dist_cat_by_subj,age_bin=="5 to 6"&sort!="Practice"))
+summary(m)
+confint(m,method="Wald")[4:5,]
+anova(m)
+```
+
+#### 6-7 years
+
+```{r}
+#6-7
+m <- lmer(avg_dist~category_pairC+(1+category_pairC|subject),data=filter(avg_dist_cat_by_subj,age_bin=="6 to 7"&sort!="Practice"))
+summary(m)
+confint(m,method="Wald")[5:6,]
+anova(m)
+```
+
+The full model above yields a singular fit, due to the high covariance between the random intercept and random slope. However, a model removing the covariance to avoid the singular fit warning yields virtually identical results.
+
+```{r}
+## model removing correlation between random intercept and slope 
+## to avoid singular fit yields equivalent results
+m <- lmer(avg_dist~category_pairC+(1+category_pairC||subject),data=filter(avg_dist_cat_by_subj,age_bin=="6 to 7"&sort!="Practice"))
+summary(m)
+confint(m,method="Wald")[4:5,]
+anova(m)
+```
+
+#### Adults
+
+```{r}
+#adults
+m <- lmer(avg_dist~category_pairC+(1+category_pairC|subject),data=filter(avg_dist_cat_by_subj,age_bin=="adults"&sort!="Practice"))
+summary(m)
+confint(m,method="Wald")[5:6,]
+anova(m)
+```
+
+The full model above yields a singular fit, due to the high covariance between the random intercept and random slope. However, a model removing the covariance to avoid the singular fit warning yields virtually identical results.
+
+```{r}
+## model removing correlation between random intercept and slope 
+## to avoid singular fit yields equivalent results
+m <- lmer(avg_dist~category_pairC+(1+category_pairC||subject),data=filter(avg_dist_cat_by_subj,age_bin=="adults"&sort!="Practice"))
+summary(m)
+confint(m,method="Wald")[4:5,]
+anova(m)
+```
+
+## Dimensions of Affect {.tabset}
+
+Next, we investigated whether dimensions of bipolar valence, bivariate valence, and arousal predicted participant’s sorting behavior using the image ratings collected from a separate group of adults. To do so, we fit a series of linear mixed-effects model regressing the average distance between item pairs on the similarity of the image pairs on the dimension of interest (bipolar valence, arousal, positivity, and negativity) – measured in terms of the difference in average stimulus rating –, age group (adults: .5; children: -.5), and their interaction, including a by-participant random intercept, a by-participant random slope for the dimension of interest, and a by-item random intercept. 
+
+```{r}
+#### Read in and prepare data ####
+subj_dist_long <- read.csv(here(root_path,"analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
+ratings_pairs <- read.csv(here(root_path,"analysis","paper_2020","processed_data","ratings_item_pairs.csv"))
+
+# To open previously computed bootstrap CIs and delta R^2 values:
+#drsq_v_a_ec <- read.csv(here(root_path,"analysis","paper_2020","processed_data","drsqr_v_a_ec.csv"))
+#drsq_pn_a_ec <- read.csv(here(root_path,"analysis","paper_2020","processed_data","drsqr_pn_a_ec.csv"))
+
+
+#select variables of interest
+subj_dist_long <- subj_dist_long %>% select(participant,sort,subject,Age,Gender,age_bin,age_group,
+                                            dist,items,item1,item2,image_cat_1,image_cat_2,image_tax_cat_1,
+                                            image_tax_cat_2,emotion_pair_same,shared_category,category_pair)
+subj_dist_long <- subj_dist_long %>%
+  left_join(ratings_pairs)
+
+# average distance item pair by group
+dist_long_byGroup <- subj_dist_long %>%
+  group_by(age_bin,age_group,items,sort) %>%
+  summarize(N=n(),average_dist=mean(dist),ci_dist=qt(0.975, N-1)*sd(dist,na.rm=T)/sqrt(N))
+dist_long_byGroup <- dist_long_byGroup %>%
+  left_join(ratings_pairs)
+
+#prepare dimensions of affect data
+dimension_data <- subj_dist_long %>% filter(sort!="Practice") %>% 
+  select(subject, sort, Age, age_bin, age_group, Gender, dist, items, dist_valence, dist_arousal, dist_pos, dist_neg) %>% 
+  mutate(subject= as.factor(subject), Gender=as.factor(Gender), age_group = as.factor(age_group), age_bin = as.factor(age_bin), sort=as.factor(sort)) %>% 
+  mutate(sortC=ifelse(sort=="Sort1",-0.5,0.5))
+# center dimensions
+dimension_data <- dimension_data %>% mutate(dist_valence=dist_valence-mean(dist_valence)) %>% 
+  mutate(dist_arousal=dist_arousal-mean(dist_arousal)) %>% 
+  mutate(dist_pos=dist_pos-mean(dist_pos)) %>% 
+  mutate(dist_neg=dist_neg-mean(dist_neg))
+dimension_data <- dimension_data %>% mutate(age_groupC=ifelse(age_group=="kids",-0.5,0.5))
+```
+
+### Adults vs. Children {.tabset}
+
+#### Valence
+
+```{r}
+m1 <- lmer(dist~dist_valence*age_groupC+(dist_valence|subject)+(1|items),data=dimension_data)
+summary(m1)
+confint(m1, method="Wald")[6:9,]
+anova(m1) #yields F and p-values when lmerTest is loaded (Satterthwaite by default)
+```
+
+#### Arousal
+
+```{r}
+m2 <- lmer(dist~dist_arousal*age_groupC+(1+dist_arousal|subject)+(1|items),data=dimension_data)
+summary(m2)
+confint(m2, method="Wald")[6:9,]
+anova(m2)
+```
+
+#### Positivity
+
+```{r}
+m3 <- lmer(dist~dist_pos*age_groupC+(1+dist_pos|subject)+(1|items),data=dimension_data)
+summary(m3)
+confint(m3, method="Wald")[6:9,]
+anova(m3)
+```
+
+#### Negativity
+
+```{r}
+m4 <- lmer(dist~dist_neg*age_groupC+(1+dist_neg|subject)+(1|items),data=dimension_data)
+summary(m4)
+confint(m4, method="Wald")[6:9,]
+anova(m4)
+```
+
+### Continuous Age (Children) {.tabset}
+
+```{r}
+# Children Only Analyses: Age is continuous
+dimension_data <- dimension_data %>%mutate(AgeC=Age-mean(Age,na.rm=T))
+dimension_data <- dimension_data %>% filter(age_group == "kids")
+```
+
+#### Valence
+
+```{r}
+m1 <- lmer(dist~dist_valence*AgeC+(1+dist_valence|subject)+(1|items),data=dimension_data)
+summary(m1)
+confint(m1, method="Wald")[6:9,]
+anova(m1)
+```
+
+#### Arousal
+
+```{r}
+m2 <- lmer(dist~dist_arousal*AgeC+(1+dist_arousal|subject)+(1|items),data=dimension_data, 
+           control = lmerControl(optimizer ="Nelder_Mead"))
+summary(m2)
+confint(m2, method="Wald")[6:9,]
+anova(m2)
+```
+
+#### Positivity
+
+```{r}
+m3 <- lmer(dist~dist_pos*AgeC+(1+dist_pos|subject)+(1|items),data=dimension_data)
+summary(m3)
+confint(m3, method="Wald")[6:9,]
+anova(m3)
+```
+
+#### Negativity
+
+```{r}
+m4 <- lmer(dist~dist_neg*AgeC+(1+dist_neg|subject)+(1|items),data=dimension_data)
+summary(m4)
+confint(m4, method="Wald")[6:9,]
+anova(m4)
+```
+
+## Comparing Dimensions of Affect and Emotion Categories
+
+### Bipolar valence, arousal, emotion category {.tabset}
+
+#### Table {.tabset}
+
+```{r}
+#function for summarizing the linear model results to an overall table
+create_effect_table <- function (m,caption="") {
+  
+  #create tdiddy summary of model, removing intercept
+  tidy_m <- m %>% 
+    broom::tidy() %>%
+    filter(!(term %in% c("(Intercept)"))) #%>%
+    #select(-std.error)
+
+  #extract overall sum squared from model and place in a data frame
+  overall_sqr <- data.frame(term="Overall", Rsqr=summary(m)$r.squared)
+  
+  #extract delta-R squared using the lmSupport package
+  rsqr_table <- modelEffectSizes(m, Print=FALSE)$Effects %>%
+    as.data.frame() %>%
+    rownames_to_column(var="term") %>%
+    filter(!(term %in% c("(Intercept)"))) %>%
+    select("term","dR-sqr")
+  
+  #join/ bind everything into one data frame
+  tidy_m <- tidy_m %>%
+    left_join(rsqr_table) %>%
+    bind_rows(overall_sqr)
+  
+  #create table using kable
+  opts <- options(knitr.kable.NA = "")
+  tidy_m %>%
+    kable(
+      caption = caption,
+      col.names=c("Predictor","Estimate","SE","t-value","p","dR^2","Overall R^2"),
+      digits=c(0,2,2,2,4,2,2)
+      )
+}
+```
+
+##### 3-4-year-olds
+
+```{r}
+#kids, 3
+m <- lm(average_dist~dist_valence+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="3 to 4")) 
+summary(m)
+#vif(m) #check VIF
+create_effect_table(m,caption="Predicting Sorting Distance from Bipolar Valence, Arousal, and Emotion Category: 3-4-year-olds")
+```
+
+##### 4-5-year-olds
+
+```{r}
+#kids, 4
+m <- lm(average_dist~dist_valence+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="4 to 5"))
+summary(m)
+#vif(m) #check VIF
+create_effect_table(m,caption="Predicting Sorting Distance from Bipolar Valence, Arousal, and Emotion Category: 4-5-year-olds")
+```
+
+##### 5-6-year-olds
+
+```{r}
+#kids, 5
+m <- lm(average_dist~dist_valence+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="5 to 6"))
+summary(m)
+#vif(m) #check VIF
+create_effect_table(m,caption="Predicting Sorting Distance from Bipolar Valence, Arousal, and Emotion Category: 5-6-year-olds")
+```
+
+##### 6-7-year-olds
+
+```{r}
+#kids, 6
+m <- lm(average_dist~dist_valence+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="6 to 7"))
+summary(m)
+#vif(m) #check VIF
+create_effect_table(m,caption="Predicting Sorting Distance from Bipolar Valence, Arousal, and Emotion Category: 6-7-year-olds")
+```
+
+##### Adults
+
+``` {r}
+#adults
+m <- lm(average_dist~dist_valence+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="adults"))
+summary(m)
+#vif(m) #check VIF
+create_effect_table(m,caption="Predicting Sorting Distance from Bipolar Valence, Arousal, and Emotion Category: Adults")
+```
+
+
+#### Plot
+
+```{r}
+# previously computed bootstrap CIs and delta R^2 values:
+## See 3_Grid_dimension_predictions_distances_clean.R for scripts bor bootstrapping CIs
+drsq_v_a_ec <- read.csv(here(root_path,"analysis","paper_2020","processed_data","drsqr_v_a_ec.csv"))
+
+p_drsq_v_a_ec <- ggplot(drsq_v_a_ec,aes(minus_model_name,delta_rsq,  fill=minus_model_name))+
+  geom_bar(stat="identity",color="black")+
+  geom_hline(yintercept=0,color="black")+
+  geom_errorbar(aes(ymin=delta_rsq_lower,ymax=delta_rsq_upper),width=0.1)+
+  # scale_fill_brewer(palette="Set2",
+  #                   name = "Model Predictor",
+  #                   limits=c("dist_valence","dist_arousal","emotion_pair_same"),
+  #                   breaks=c("dist_valence","dist_arousal","emotion_pair_same"),
+  #                   labels=c("Valence","Arousal","Same Emotion Category"))+
+  scale_fill_viridis_d(
+                    name = " ", #Model Predictor
+                    limits=c("dist_valence","dist_arousal","emotion_pair_same"),
+                    breaks=c("dist_valence","dist_arousal","emotion_pair_same"),
+                    labels=c("Valence","Arousal","Emotion Category"))+
+  scale_x_discrete(
+    limits=c("dist_valence","dist_arousal","emotion_pair_same"),
+    breaks=c("dist_valence","dist_arousal","emotion_pair_same"),
+    labels=c("Valence","Arousal","Same Emotion Category"))+
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5,size=18),
+        axis.title.x = element_text(size=20,face="bold"),
+        axis.text.y =  element_text(size=18),
+        axis.title.y= element_text(size=20,face="bold"),
+        strip.text.x = element_text(size=18),
+        legend.text =element_text(size=20),
+        legend.title =element_text(size=22,face="bold"))+
+  theme(#axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  ylab("Delta R Squared")+
+  xlab("Age Group (years)") +
+  facet_wrap(~age_bin,nrow=1, labeller = age_labeller, strip.position = c("bottom"))+
+  theme(legend.position=c(0.1,0.8))
+p_drsq_v_a_ec
+```
+
+### Bivariate valence, arousal, emotion category {.tabset}
+
+#### Table {.tabset}
+
+##### 3-4-year-olds
+
+```{r}
+#kids, 3
+m <- lm(average_dist~dist_pos+dist_neg+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="3 to 4")) 
+summary(m)
+#vif(m) #check VIF
+create_effect_table(m,caption="Predicting Sorting Distance from Bivariate Valence, Arousal, and Emotion Category: 3-4-year-olds")
+```
+
+##### 4-5-year-olds
+
+```{r}
+#kids, 4
+m <- lm(average_dist~dist_pos+dist_neg+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="4 to 5"))
+summary(m)
+#vif(m) #check VIF
+create_effect_table(m,caption="Predicting Sorting Distance from Bivariate Valence, Arousal, and Emotion Category: 4-5-year-olds")
+```
+
+##### 5-6-year-olds
+
+```{r}
+#kids, 5
+m <- lm(average_dist~dist_pos+dist_neg+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="5 to 6"))
+summary(m)
+#vif(m) #check VIF
+create_effect_table(m,caption="Predicting Sorting Distance from Bivariate Valence, Arousal, and Emotion Category: 5-6-year-olds")
+```
+
+##### 6-7-year-olds
+
+```{r}
+#kids, 6
+m <- lm(average_dist~dist_pos+dist_neg+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="6 to 7"))
+summary(m)
+#vif(m) #check VIF
+create_effect_table(m,caption="Predicting Sorting Distance from Bivariate Valence, Arousal, and Emotion Category: 6-7-year-olds")
+```
+
+##### Adults
+
+``` {r}
+#adults
+m <- lm(average_dist~dist_pos+dist_neg+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="adults"))
+summary(m)
+#vif(m) #check VIF
+create_effect_table(m,caption="Predicting Sorting Distance from Bivariate Valence, Arousal, and Emotion Category: Adults")
+```
+
+#### Plot
+
+```{r}
+# previously computed bootstrap CIs and delta R^2 values:
+## See 3_Grid_dimension_predictions_distances_clean.R for scripts bor bootstrapping CIs
+drsq_pn_a_ec <- read.csv(here(root_path,"analysis","paper_2020","processed_data","drsqr_pn_a_ec.csv"))
+
+p_drsq_pn_a_ec <- ggplot(drsq_pn_a_ec,aes(minus_model_name,delta_rsq,  fill=minus_model_name))+
+  geom_bar(stat="identity",color="black")+
+  geom_hline(yintercept=0,color="black")+
+  geom_errorbar(aes(ymin=delta_rsq_lower,ymax=delta_rsq_upper),width=0.1)+
+  # scale_fill_brewer(palette="Set1",
+  #                   name = "Model Predictor",
+  #                   limits=c("dist_pos","dist_neg","dist_arousal","emotion_pair_same"),
+  #                   breaks=c("dist_pos","dist_neg","dist_arousal","emotion_pair_same"),
+  #                   labels=c("Positive","Negative","Arousal","Same Emotion Category"))+
+  scale_fill_viridis_d(
+                    name = "Model Predictor",
+                    limits=c("dist_pos","dist_neg","dist_arousal","emotion_pair_same"),
+                    breaks=c("dist_pos","dist_neg","dist_arousal","emotion_pair_same"),
+                    labels=c("Positive","Negative","Arousal","Same Emotion Category"))+
+  scale_x_discrete(
+    limits=c("dist_pos","dist_neg","dist_arousal","emotion_pair_same"),
+    breaks=c("dist_pos","dist_neg","dist_arousal","emotion_pair_same"),
+    labels=c("Positive","Negative","Arousal","Same Emotion Category"))+
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5,size=18),
+        axis.title.x = element_text(size=20,face="bold"),
+        axis.text.y =  element_text(size=18),
+        axis.title.y= element_text(size=20,face="bold"),
+        strip.text.x = element_text(size=18))+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())+
+  ylab("Delta R Squared")+
+  facet_wrap(~age_bin,nrow=1)+
+  theme(legend.position=c(0.1,0.8))
+p_drsq_pn_a_ec
+```
+
+### Bivariate valence vs. Bipolar valence {.tabset}
+
+We also investigated whether bivariate valence – with  separate dimensions of positivity and negativity—led to better model performance than bipolar valence. To do so, we compared the models including bipolar valence to the models including positivity and negativity in each age group. In general, replacing the valence predictor with separate predictors of positivity and negativity led to improved model performance (i.e., explained more variance in sorting behavior) in all but the youngest age group, with the most substantial gains in predictor among the 5- and 6-year-olds.
+
+#### 3-4-year-olds
+
+```{r}
+#kids, 3
+m_v <- lm(average_dist~dist_valence+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="3 to 4"))
+m_pn <- lm(average_dist~dist_pos+dist_neg+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="3 to 4"))
+anova(m_v,m_pn)
+```
+
+#### 4-5-year-olds
+
+```{r}
+#kids, 4
+m_v <- lm(average_dist~dist_valence+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="4 to 5"))
+m_pn <- lm(average_dist~dist_pos+dist_neg+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="4 to 5"))
+anova(m_v,m_pn)
+```
+
+#### 5-6-year-olds
+
+```{r}
+#kids, 5
+m_v <- lm(average_dist~dist_valence+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="5 to 6"))
+m_pn <- lm(average_dist~dist_pos+dist_neg+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="5 to 6"))
+anova(m_v,m_pn)
+```
+
+#### 6-7-year-olds
+
+```{r}
+#kids, 6
+m_v <- lm(average_dist~dist_valence+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="6 to 7"))
+m_pn <- lm(average_dist~dist_pos+dist_neg+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="6 to 7"))
+anova(m_v,m_pn)
+```
+
+#### Adults
+
+```{r}
+#adults
+m_v <- lm(average_dist~dist_valence+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="adults"))
+m_pn <- lm(average_dist~dist_pos+dist_neg+dist_arousal+emotion_pair_same,data=filter(dist_long_byGroup,age_bin=="adults"))
+anova(m_v,m_pn)
+```
+
+## Bottom-up analyses
+
+Our last sets of analyses took a bottom-up approach, using unsupervised methods to provide a different perspective on how emotions might be represented without reliance on any predetermined dimensions or categories. For this reason, we analyzed the Same and Different Individual Sorts separately because we did not want to assume that a happy face in one sort had anything to do with a happy face in another.
+
+### MDS Analyses {.tabset}
+
+First, we used 2-dimensional multidimensional scaling (MDS) to visually represent participant’s classifications (Figure 3). To better understand the dimensions, we fit vectors of image ratings for bipolar valence, arousal, positivity, and negativity onto our MDS solution over 1,000 permutations to derive the squared correlation coefficient of each vector (envfit in Vegan package; Oksanen, 2019). 
+
+```{r}
+subj_dist_long <- read.csv(here(root_path,"analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
+ratings <- read.csv(here(root_path,"analysis","paper_2020","processed_data","ratings_data.csv"))
+
+#average across all distances
+avg_dist_long <- subj_dist_long %>%
+  group_by(sort,age_group,item1,item2) %>%
+  summarize(avg_dist=mean(dist)) %>%
+  ungroup() %>%
+  mutate(sort=as.character(sort),age_group=as.character(age_group),item1=as.character(item1),item2=as.character(item2))
+
+#average distance object organized by sorting group
+avg_dist <- avg_dist_long %>%
+  group_by(sort,age_group) %>%
+  nest() %>%
+  mutate(dist_obj = purrr::map(data, long_to_dist))
+```
+
+#### Same Individual {.tabset}
+
+##### Children
+
+MDS solution fit with each dimension.
+
+```{r, cache=TRUE, fig.width=6,fig.height=6}
+set.seed(51314)
+#### Plot MDS - Kids: Sorting Same Individual ####
+cur_dist <- filter(avg_dist,sort=="Sort1"&age_group=="kids")$dist_obj[[1]]
+sort1_kids_cmd <- data.frame(cmdscale(cur_dist, k=2))
+ratings1 <- ratings %>% filter(sort=="Sort1") %>%  dplyr::select(image, pos, neg, valence, arousal) %>% rename(positivity=pos, negativity=neg)
+sort1k_fit <- envfit(sort1_kids_cmd,ratings1, permutations = 1000)
+sort1k_fit
+# prepare face images
+cur_cluster <- hclust(cur_dist)
+image_paths <- paste(here("experiment","stimuli_sort1"),"/",labels(cur_cluster),".png",sep="")
+cur_images <- data.frame(
+  label=labels(cur_cluster),
+  image=image_paths,
+  x=seq(1,length(image_paths)),
+  y=rep(c(-0.05,-0.1),length(image_paths)/2))
+sort1_images <- cur_images
+cur_cmd <- data.frame(cmdscale(cur_dist))
+cur_cmd$label <- rownames(cur_cmd)
+cur_cmd <- merge(cur_cmd,sort1_images)
+
+#include correlations at correct angles
+data.scores = as.data.frame(scores(sort1_kids_cmd))
+en_coord_cont = as.data.frame(scores(sort1k_fit, "vectors")) * ordiArrowMul(sort1k_fit)
+
+#Plot MDS with rating vectors
+p1 <- ggplot(data=cur_cmd,aes(X1,X2))+
+  geom_image(data=cur_cmd, aes(image=image), size=0.08)+
+  ylab("Dimension 2")+
+  xlab("Dimension 1")+
+  geom_segment(data = en_coord_cont,aes(x = 0, y = 0, xend = X1/7, yend = X2/7, color=row.names(en_coord_cont)), 
+               size =1, alpha = 0.8, arrow = arrow(length = unit(0.03, "npc"))) + #ends="both" for arrow
+  geom_text(data = en_coord_cont, aes(x = X1/7, y = (X2/7) - .01), colour = "black",
+            fontface = "bold", label = row.names(en_coord_cont))+
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5,size=18),
+        axis.title.x = element_text(size=18,face="bold"),
+        axis.text.y =  element_text(size=16),
+        axis.title.y= element_text(size=18,face="bold"),
+        strip.text.x = element_text(size=16))+
+  ggtitle("Children")+
+  theme(legend.position="none", plot.title = element_text(hjust = 0.5,size=18))
+p1
+```
+
+
+##### Adults
+
+MDS solution fit with each dimension.
+
+```{r, cache=TRUE, fig.width=6,fig.height=6}
+#### Plot MDS - Adults: Sorting Same Individual ####
+cur_dist <- filter(avg_dist,sort=="Sort1"&age_group=="adults")$dist_obj[[1]]
+sort1_adults_cmd <- data.frame(cmdscale(cur_dist, k=2))
+sort1a_fit <- envfit(sort1_adults_cmd,ratings1, permutations=1000)
+sort1a_fit
+
+#include correlations at correct angles
+data.scores = as.data.frame(scores(sort1_adults_cmd))
+en_coord_cont = as.data.frame(scores(sort1a_fit, "vectors")) * ordiArrowMul(sort1a_fit)
+
+#Plot MDS with rating vectors
+cur_cmd <- data.frame(cmdscale(cur_dist))
+cur_cmd$label <- rownames(cur_cmd)
+cur_cmd <- merge(cur_cmd,sort1_images)
+
+p2 <- ggplot(data=cur_cmd,aes(X1,X2))+
+  geom_image(data=cur_cmd, aes(image=image), size=0.08)+
+  ylab("Dimension 2")+
+  xlab("Dimension 1")+
+  geom_segment(data = en_coord_cont,aes(x = 0, y = 0, xend = X1/4, yend = X2/4, color=row.names(en_coord_cont)), 
+               size =1, alpha = 0.8, arrow = arrow(length = unit(0.03, "npc"))) + #ends="both" for arrow
+  geom_text(data = en_coord_cont, aes(x = X1/4, y = (X2/4) - .01), colour = "black",
+            fontface = "bold", label = row.names(en_coord_cont))+
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5,size=18),
+        axis.title.x = element_text(size=18,face="bold"),
+        axis.text.y =  element_text(size=16),
+        axis.title.y= element_text(size=18,face="bold"),
+        strip.text.x = element_text(size=16))+
+  ggtitle("Adults")+
+  theme(legend.position="none", plot.title = element_text(hjust = 0.5,size=18))
+p2
+```
+
+#### Different Individuals {.tabset}
+
+##### Children
+
+MDS solution fit with each dimension.
+
+```{r, cache=TRUE, fig.width=6,fig.height=6}
+#### Plot MDS - Kids: Sorting Different Individuals ####
+cur_dist <- filter(avg_dist,sort=="Sort2"&age_group=="kids")$dist_obj[[1]]
+sort2_kids_cmd <- data.frame(cmdscale(cur_dist, k=2))
+ratings2 <- ratings %>% filter(sort=="Sort2") %>%  select(image, pos, neg, valence, arousal) %>% rename(positivity=pos, negativity=neg)
+sort2k_fit <- envfit(sort2_kids_cmd,ratings2, permutations=1000)
+#show fit
+sort2k_fit
+
+#include correlations at correct angles
+data.scores = as.data.frame(scores(sort2_kids_cmd))
+en_coord_cont = as.data.frame(scores(sort2k_fit, "vectors")) * ordiArrowMul(sort2k_fit)
+
+#create image paths
+cur_cluster <- hclust(cur_dist)
+image_paths <- paste(here("experiment","stimuli_sort2"),"/",labels(cur_cluster),".png",sep="")
+cur_images <- data.frame(
+  label=labels(cur_cluster),
+  image=image_paths,
+  x=seq(1,length(image_paths)),
+  y=rep(c(-0.05,-0.1),length(image_paths)/2))
+sort2_images <- cur_images
+cur_cmd <- data.frame(cmdscale(cur_dist))
+cur_cmd$label <- rownames(cur_cmd)
+cur_cmd <- merge(cur_cmd,sort2_images)
+
+
+#Plot MDS with rating vectors
+p3 <- ggplot(data=cur_cmd,aes(X1,X2))+
+  geom_image(data=cur_cmd, aes(image=image), size=0.08)+
+  ylab("Dimension 2")+
+  xlab("Dimension 1")+
+  geom_segment(data = en_coord_cont,aes(x = 0, y = 0, xend = X1/7, yend = X2/7, color=row.names(en_coord_cont)), 
+               size =1, alpha = 0.8, arrow = arrow(length = unit(0.03, "npc"))) + #ends="both" for arrow
+  geom_text(data = en_coord_cont, aes(x = X1/7, y = (X2/7) - .01), colour = "black",
+            fontface = "bold", label = row.names(en_coord_cont))+
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5,size=18),
+        axis.title.x = element_text(size=18,face="bold"),
+        axis.text.y =  element_text(size=16),
+        axis.title.y= element_text(size=18,face="bold"),
+        strip.text.x = element_text(size=16))+
+  ggtitle("Children")+
+  theme(legend.position="none", plot.title = element_text(hjust = 0.5,size=18))
+p3
+```
+
+##### Adults
+
+```{r, cache=TRUE, fig.width=6,fig.height=6}
+#### Plot MDS - Adults: Sorting Different Individuals  ####
+cur_dist <- filter(avg_dist,sort=="Sort2"&age_group=="adults")$dist_obj[[1]]
+sort2_adults_cmd <- data.frame(cmdscale(cur_dist, k=2))
+sort2a_fit <- envfit(sort2_adults_cmd,ratings2, permutations=1000)
+sort2a_fit
+
+#include correlations at correct angles
+data.scores = as.data.frame(scores(sort2_adults_cmd))
+en_coord_cont = as.data.frame(scores(sort2a_fit, "vectors")) * ordiArrowMul(sort2a_fit)
+
+# prepare images
+cur_cmd <- data.frame(cmdscale(cur_dist))
+cur_cmd$label <- rownames(cur_cmd)
+cur_cmd <- merge(cur_cmd,sort2_images)
+
+#Plot MDS with rating vectors
+p4 <- ggplot(data=cur_cmd,aes(X1,X2))+
+  geom_image(data=cur_cmd, aes(image=image), size=0.08)+
+  ylab("Dimension 2")+
+  xlab("Dimension 1")+
+  geom_segment(data = en_coord_cont,aes(x = 0, y = 0, xend = X1/4, yend = X2/4, color=row.names(en_coord_cont)), 
+               size =1, alpha = 0.8, arrow = arrow(length = unit(0.03, "npc"))) + #ends="both" for arrow
+  geom_text(data = en_coord_cont, aes(x = X1/4, y = (X2/4) - .02), colour = "black",
+            fontface = "bold", label = row.names(en_coord_cont))+
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5,size=18),
+        axis.title.x = element_text(size=18,face="bold"),
+        axis.text.y =  element_text(size=16),
+        axis.title.y= element_text(size=18,face="bold"),
+        strip.text.x = element_text(size=16))+
+  ggtitle("Adults")+
+  theme(legend.position="none", plot.title = element_text(hjust = 0.5,size=18))
+p4
+```
+
+### Hierarchical Clustering
+
+Second, we used hierarchical clustering to examine age-related changes in how participants organized emotion cues (Ward's method; Ward, 1963). Clustering was performed on distance matrices calculated for each age group in each sorting condition using the pairwise distances between all sorted images.
+
+First, we define some helpful functions.
+
+```{r}
+clean_labels_sort <- function(cluster_object) {
+  #clean up labels
+  cluster_object[["old_label"]] <- cluster_object[["labels"]]
+  cluster_object[["labels"]] <- cluster_object[["labels"]] %>%
+  str_replace_all(c("M07"="","F01"="","F04"="","F07"="","F10"="", "F13"="",
+                    "F14"="","F15"="", "F17"="","F22"="","M02"="","M04"="",
+                    "M03"="","M05"="","M08"="","M12"="","M14"="","M15"="",
+                    "M17"="","_o"=" 1", "_c"=" 2", "ang"="angry","calm"="calm","disg"="disgust",
+                    "exc"="excited","fear"="fear", "hap"="happy",
+                    "neut"="neutral","sad"="sad", "surp"="surprise"))
+  cluster_object
+}
+
+clean_cluster <- function(d,cur_method="ward.D2",clean_labels=TRUE) {
+  cur_cluster <- d %>%
+    hclust(method = cur_method)
+  if (clean_labels) {
+    cur_cluster <- clean_labels_sort(cur_cluster)
+  }
+  cur_cluster
+}
+
+cut_cluster <- function(clst,cluster_num=3,add_ratings=TRUE) {
+  #create labels data frame to retain old label names (useful for joining)
+  labels=data.frame(old_label=pluck(clst,"old_label"),label=pluck(clst,"labels"))
+  clst %>%
+    cutree(cluster_num) %>%
+    as.data.frame() %>%
+    tibble::rownames_to_column("label") %>%
+    left_join(labels) %>%
+    rename(cluster3 = ".") %>%
+    dplyr::left_join(ratings_clean, by = c("old_label")) %>%
+    mutate(cluster3 = as.factor(cluster3))
+}
+```
+
+Then we create the main clustering objects based on the average distances between items within each sorting and age group.
+
+```{r}
+#read in data (root_path)
+subj_dist_long <- read.csv(here("analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
+
+ratings <- read.csv(here("analysis","paper_2020","processed_data","ratings_data.csv")) %>% 
+  select(image, sort, pos, neg, valence, arousal) %>%
+  rename(label = image)
+#clean ratings names
+ratings_clean <- ratings %>% 
+  mutate(clean_label = str_replace_all(label,c("F01"="","F04"="","F07"="","F10"="", "F13"="", "F14"="","F15"="", "F17"="","F22"="","M02"="","M04"="",
+                    "M03"="","M07"="", "M05"="","M08"="","M12"="","M14"="","M15"="",
+                    "M17"="","_o"=" 1", "_c"=" 2", "ang"="angry", "calm"="calm",
+                    "disg"="disgust", "exc"="excited", "fear"="fear",
+                    "hap"="happy", "neut"="neutral", "sad"="sad",
+                    "surp"="surprise"))) %>%
+  rename(old_label=label)
+
+### Group data by age groups and age bins
+#average across all distances
+avg_dist_long_byGroup <- subj_dist_long %>%
+  group_by(sort,age_group,item1,item2) %>%
+  summarize(avg_dist=mean(dist)) %>%
+  ungroup() %>%
+  mutate(sort=as.character(sort),age_group=as.character(age_group),item1=as.character(item1),item2=as.character(item2))
+
+#average distance object organized by sorting group
+avg_dist_byGroup <- avg_dist_long_byGroup %>%
+  group_by(sort,age_group) %>%
+  nest() %>%
+  mutate(dist_obj = purrr::map(data, long_to_dist))
+
+#average across all distances
+avg_dist_long_byBin <- subj_dist_long %>%
+  group_by(sort,age_bin,item1,item2) %>%
+  summarize(avg_dist=mean(dist)) %>%
+  ungroup() %>%
+  mutate(sort=as.character(sort),age_bin=as.character(age_bin),item1=as.character(item1),item2=as.character(item2))
+
+#average distance object organized by sorting group
+avg_dist_byBin <- avg_dist_long_byBin %>%
+  group_by(sort,age_bin) %>%
+  nest() %>%
+  mutate(dist_obj = purrr::map(data, long_to_dist))
+
+#### create overall grouped cluster objects ####
+clusters_by_group <- avg_dist_byGroup %>%
+  mutate(cluster=lapply(dist_obj, function(d) clean_cluster(d))) %>%
+  mutate(dend = lapply(cluster, function(clst) clst %>% as.dendrogram())) %>%
+  #cut cluster into 3 groups
+  mutate(cut_cluster=lapply(cluster, function(clst) cut_cluster(clst,cluster_num=3))) %>%
+  #fit model predicting valence from clusters
+  mutate(model_valence = lapply(cut_cluster, function(df) if (sort=="Practice") {NA} else {lm(valence~cluster3, data=df)}))
+
+clusters_by_bin <- avg_dist_byBin %>%
+  mutate(cluster=lapply(dist_obj, function(d) clean_cluster(d))) %>%
+  mutate(dend = lapply(cluster, function(clst) clst %>% as.dendrogram())) %>%
+  #cut cluster into 3 groups
+  mutate(cut_cluster=lapply(cluster, function(clst) cut_cluster(clst,cluster_num=3))) %>%
+  #fit model predicting valence from clusters
+  mutate(model_valence = lapply(cut_cluster, function(df) if (sort=="Practice") {NA} else {lm(valence~cluster3, data=df)}))
+```
+
+#### Dendrograms {.tabset}
+
+##### Same Individual {.tabset}
+
+###### 3-4-year-olds
+
+```{r}
+s1_3_dend <- clusters_by_bin %>% filter(age_bin=="3 to 4",sort=="Sort1") %>% pull(dend) %>% pluck(1)
+s1_3_dend %>% set("branches_lwd", 2) %>%  set("branches_k_color",value=c(1,1,1), k=3) %>% plot(main = "3-4-year-olds")
+```
+
+###### 4-5-year-olds
+
+```{r}
+s1_4_dend <- clusters_by_bin %>% filter(age_bin=="4 to 5",sort=="Sort1") %>% pull(dend) %>% pluck(1)
+s1_4_dend %>% set("branches_lwd", 2) %>% set("branches_k_color", value=c(2,3,4), k=3) %>% plot(main = "4-5-year-olds")
+```
+
+###### 5-6-year-olds
+
+```{r}
+s1_5_dend <- clusters_by_bin %>% filter(age_bin=="5 to 6",sort=="Sort1") %>% pull(dend) %>% pluck(1)
+s1_5_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,3,4), k=3) %>% plot(main = "5-6-year-olds")
+```
+
+###### 6-7-year-olds
+
+```{r}
+s1_6_dend <- clusters_by_bin %>% filter(age_bin=="6 to 7",sort=="Sort1") %>% pull(dend) %>% pluck(1)
+s1_6_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,4,3), k=3) %>% plot(main = "6-7-year-olds")
+```
+
+###### Adults
+
+```{r}
+s1_a_dend <- clusters_by_bin %>% filter(age_bin=="adults",sort=="Sort1") %>% pull(dend) %>% pluck(1)
+s1_a_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(4,3,2), k=3) %>% plot(main = "Adults")
+```
+
+##### Different Individuals {.tabset}
+
+###### 3-4-year-olds
+
+```{r}
+s2_3_dend <- clusters_by_bin %>% filter(age_bin=="3 to 4",sort=="Sort2") %>% pull(dend) %>% pluck(1)
+s2_3_dend %>% set("branches_lwd", 2) %>%  set("branches_k_color",value=c(1,1,1), k=3) %>% plot(main = "3-4-year-olds")
+```
+
+
+###### 4-5-year-olds
+
+```{r}
+s2_4_dend <- clusters_by_bin %>% filter(age_bin=="4 to 5",sort=="Sort2") %>% pull(dend) %>% pluck(1)
+s2_4_dend %>% set("branches_lwd", 2) %>% set("branches_k_color", value=c(2,3,4), k=3) %>% plot(main = "4-5-year-olds")
+```
+
+###### 5-6-year-olds
+
+```{r}
+s2_5_dend <- clusters_by_bin %>% filter(age_bin=="5 to 6",sort=="Sort2") %>% pull(dend) %>% pluck(1)
+s2_5_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,3,4), k=3) %>% plot(main = "5-6-year-olds")
+```
+
+###### 6-7-year-olds
+
+```{r}
+s2_6_dend <- clusters_by_bin %>% filter(age_bin=="6 to 7",sort=="Sort2") %>% pull(dend) %>% pluck(1)
+s2_6_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,4,3), k=3) %>% plot(main = "6-7-year-olds")
+```
+
+###### Adults
+
+```{r}
+s2_a_dend <- clusters_by_bin %>% filter(age_bin=="adults",sort=="Sort2") %>% pull(dend) %>% pluck(1)
+s2_a_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(4,2,3), k=3) %>% plot(main = "Adults")
+```
+
+#### Similarity Measures 
+
+#### Practice {.tabset}
+
+##### Correlation
+
+```{r}
+#extract practice dendrograms
+p3_dend <- clusters_by_bin %>% filter(age_bin=="3 to 4",sort=="Practice") %>% pull(dend) %>% pluck(1)
+p4_dend <- clusters_by_bin %>% filter(age_bin=="4 to 5",sort=="Practice") %>% pull(dend) %>% pluck(1)
+p5_dend <- clusters_by_bin %>% filter(age_bin=="5 to 6",sort=="Practice") %>% pull(dend) %>% pluck(1)
+p6_dend <- clusters_by_bin %>% filter(age_bin=="6 to 7",sort=="Practice") %>% pull(dend) %>% pluck(1)
+pa_dend <- clusters_by_bin %>% filter(age_bin=="adults",sort=="Practice") %>% pull(dend) %>% pluck(1)
+
+prac_compare <- dendlist("3-year-olds" = p3_dend, "4-year-olds" = p4_dend, "5-year-olds" = p5_dend, "6-year-olds" = p6_dend, "Adults" = pa_dend)
+#Correlation
+ggcorrplot(cor.dendlist(prac_compare), type = "lower", lab=TRUE, outline.color="black", ggtheme = ggplot2::theme_void())
+```
+
+##### Other Similarity Measures
+
+```{r}
+similarity_to_adults_p <- data.frame(
+  sort=rep("Practice",4),
+  age_bin = c("3 to 4","4 to 5","5 to 6","6 to 7"),
+  fm_to_adults=c(
+    Bk(pa_dend, p3_dend, k = 3)$`3`[1],
+    Bk(pa_dend, p4_dend, k = 3)$`3`[1],
+    Bk(pa_dend, p5_dend, k = 3)$`3`[1],
+    Bk(pa_dend, p6_dend, k = 3)$`3`[1]
+  ),
+  ar_to_adults = c(
+    adj.rand.index(cutree(pa_dend, k=3),cutree(p3_dend, k=3)),
+    adj.rand.index(cutree(pa_dend, k=3),cutree(p4_dend, k=3)),
+    adj.rand.index(cutree(pa_dend, k=3),cutree(p5_dend, k=3)),
+    adj.rand.index(cutree(pa_dend, k=3),cutree(p6_dend, k=3))
+  )
+)
+
+similarity_to_adults_p %>%
+  select(age_bin,fm_to_adults,ar_to_adults)%>%
+  kable(
+      caption = "Comparing children's hierarchical clustering solutions to adults' during Practice (k=3)",
+      col.names=c("Age Group","Fowlkes-Mallows Index","Adjusted Rand Index"),
+      digits=c(0,2,2)
+      )
+```
+
+
+#### Same Individual {.tabset}
+
+##### Correlation
+
+```{r}
+#Correlation
+sort1_compare <- dendlist("3-year-olds" = s1_3_dend, "4-year-olds" = s1_4_dend, "5-year-olds" = s1_5_dend, "6-year-olds" = s1_6_dend, "Adults" = s1_a_dend)
+ggcorrplot(cor.dendlist(sort1_compare), type = "lower", lab=TRUE, outline.color="black", ggtheme = ggplot2::theme_void())
+```
+
+##### Other Similarity Measures
+
+```{r}
+similarity_to_adults_s1 <- data.frame(
+  sort=rep("Sort1",4),
+  age_bin = c("3 to 4","4 to 5","5 to 6","6 to 7"),
+  fm_to_adults=c(
+    Bk(s1_a_dend, s1_3_dend, k = 3)$`3`[1],
+    Bk(s1_a_dend, s1_4_dend, k = 3)$`3`[1],
+    Bk(s1_a_dend, s1_5_dend, k = 3)$`3`[1],
+    Bk(s1_a_dend, s1_6_dend, k = 3)$`3`[1]
+  ),
+  ar_to_adults = c(
+    adj.rand.index(cutree(s1_a_dend, k=3),cutree(s1_3_dend, k=3)),
+    adj.rand.index(cutree(s1_a_dend, k=3),cutree(s1_4_dend, k=3)),
+    adj.rand.index(cutree(s1_a_dend, k=3),cutree(s1_5_dend, k=3)),
+    adj.rand.index(cutree(s1_a_dend, k=3),cutree(s1_6_dend, k=3))
+  )
+)
+
+similarity_to_adults_s1 %>%
+  select(age_bin,fm_to_adults,ar_to_adults)%>%
+  kable(
+      caption = "Comparing children's hierarchical clustering solutions to adults' during the Same Individual Sort (k=3)",
+      col.names=c("Age Group","Fowlkes-Mallows Index","Adjusted Rand Index"),
+      digits=c(0,2,2)
+      )
+```
+
+#### Different Individuals {.tabset}
+
+##### Correlation 
+```{r}
+#Correlation
+sort2_compare <- dendlist("3-year-olds" = s2_3_dend, "4-year-olds" = s2_4_dend, "5-year-olds" = s2_5_dend, "6-year-olds" = s2_6_dend, "Adults" = s2_a_dend)
+
+ggcorrplot(cor.dendlist(sort2_compare), type = "lower", lab=TRUE, outline.color="black", ggtheme = ggplot2::theme_void())
+```
+
+##### Other Similarity Measures
+
+```{r}
+similarity_to_adults_s2 <- data.frame(
+  sort=rep("Sort2",4),
+  age_bin = c("3 to 4","4 to 5","5 to 6","6 to 7"),
+  fm_to_adults=c(
+    Bk(s2_a_dend, s2_3_dend, k = 3)$`3`[1],
+    Bk(s2_a_dend, s2_4_dend, k = 3)$`3`[1],
+    Bk(s2_a_dend, s2_5_dend, k = 3)$`3`[1],
+    Bk(s2_a_dend, s2_6_dend, k = 3)$`3`[1]
+  ),
+  ar_to_adults = c(
+    adj.rand.index(cutree(s2_a_dend, k=3),cutree(s2_3_dend, k=3)),
+    adj.rand.index(cutree(s2_a_dend, k=3),cutree(s2_4_dend, k=3)),
+    adj.rand.index(cutree(s2_a_dend, k=3),cutree(s2_5_dend, k=3)),
+    adj.rand.index(cutree(s2_a_dend, k=3),cutree(s2_6_dend, k=3))
+  )
+)
+
+similarity_to_adults_s2 %>%
+  select(age_bin,fm_to_adults,ar_to_adults)%>%
+  kable(
+      caption = "Comparing children's hierarchical clustering solutions to adults' during the Different Individuals Sort (k=3)",
+      col.names=c("Age Group","Fowlkes-Mallows Index","Adjusted Rand Index"),
+      digits=c(0,2,2)
+      )
+```
+
+#### Predicting Valence {.tabset}
+
+The clusters were strong predictors of valence ratings across age group (providing convergent evidence that valence was main dimension organizing participants' sorting across ages).
+
+##### Children vs. Adults {.tabset}
+
+###### Same Individual {.tabset}
+
+####### Children
+```{r}
+#children
+clusters_by_group %>% filter(sort=="Sort1"&age_group=="kids") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+####### Adults
+
+```{r}
+#adults
+clusters_by_group %>% filter(sort=="Sort1"&age_group=="adults") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+###### Different Individuals
+
+####### Children
+```{r}
+#children
+clusters_by_group %>% filter(sort=="Sort2"&age_group=="kids") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+####### Adults
+
+```{r}
+#adults
+clusters_by_group %>% filter(sort=="Sort2"&age_group=="adults") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+##### Individual Age Groups {.tabset}
+
+###### Same Individual
+
+####### 3-year-olds
+
+```{r}
+#children
+## 3 to 4
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="3 to 4") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+####### 4-year-olds
+
+```{r}
+## 4 to 5
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="4 to 5") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+####### 5-year-olds
+
+```{r}
+## 5 to 6
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="5 to 6") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+####### 6-year-olds
+
+```{r}
+## 6 to 7
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="6 to 7") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+####### adults
+
+```{r}
+# adults
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="adults") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+###### Different Individuals
+
+####### 3-year-olds
+
+```{r}
+#children
+## 3 to 4
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="3 to 4") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+####### 4-year-olds
+
+```{r}
+## 4 to 5
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="4 to 5") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+####### 5-year-olds
+
+```{r}
+## 5 to 6
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="5 to 6") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+####### 6-year-olds
+
+```{r}
+## 6 to 7
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="6 to 7") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+####### adults
+
+```{r}
+# adults
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="adults") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+
+## Session Info
+
+```{r}
+sessionInfo()
+```
+
+

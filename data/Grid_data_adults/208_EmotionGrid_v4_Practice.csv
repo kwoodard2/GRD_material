@@ -1,0 +1,6 @@
+participant,seed,sort,image,final_img_pos,posX,posY
+208,8,Practice,bird,[-357.  -74.],-357.0,-74.0
+208,8,Practice,car,[ 215. -223.],215.0,-223.0
+208,8,Practice,bus,[ 358.  -74.],358.0,-74.0
+208,8,Practice,squirrel,[-357. -223.],-357.0,-223.0
+208,8,Practice,table,[ -71.  224.],-71.0,224.0

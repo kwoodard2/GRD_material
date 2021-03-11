@@ -1,0 +1,6 @@
+participant,seed,sort,image,final_img_pos,posX,posY
+subjCode306,306,Practice,squirrel,[-71.  75.],-71.0,75.0
+subjCode306,306,Practice,table,[ 215.   75.],215.0,75.0
+subjCode306,306,Practice,bus,[ 215. -223.],215.0,-223.0
+subjCode306,306,Practice,car,[ -71. -223.],-71.0,-223.0
+subjCode306,306,Practice,bird,[-357.  -74.],-357.0,-74.0

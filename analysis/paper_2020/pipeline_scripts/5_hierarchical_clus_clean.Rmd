@@ -1,0 +1,362 @@
+---
+title: "Grid: Hierarchical Clustering"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+# Load packages and data
+```{r load packages, include=FALSE}
+library(tidyverse)
+library(harrietr)
+library(ggdendro)
+library(ggimage)
+library(dendroextras)
+library(dendextend)
+library(corrplot)
+library(ggcorrplot)
+library(here)
+library(cowplot)
+library(car)
+library(cluster)
+library(factoextra)
+library(fossil)
+library(knitr)
+source("Grid_helper_functions.R")
+theme_set(theme_cowplot())
+
+#read in data
+subj_dist_long <- read.csv(here("analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
+
+ratings <- read.csv(here("analysis","paper_2020","processed_data","ratings_data.csv")) %>% 
+  select(image, sort, pos, neg, valence, arousal) %>%
+  rename(label = image)
+#clean ratings names
+ratings_clean <- ratings %>% 
+  mutate(clean_label = str_replace_all(label,c("F01"="","F04"="","F07"="","F10"="", "F13"="", "F14"="","F15"="", "F17"="","F22"="","M02"="","M04"="",
+                    "M03"="","M07"="", "M05"="","M08"="","M12"="","M14"="","M15"="",
+                    "M17"="","_o"=" 1", "_c"=" 2", "ang"="angry", "calm"="calm",
+                    "disg"="disgust", "exc"="excited", "fear"="fear",
+                    "hap"="happy", "neut"="neutral", "sad"="sad",
+                    "surp"="surprise"))) %>%
+  rename(old_label=label)
+```
+
+# Define functions for clustering
+
+```{r}
+clean_labels_sort <- function(cluster_object) {
+  #clean up labels
+  cluster_object[["old_label"]] <- cluster_object[["labels"]]
+  cluster_object[["labels"]] <- cluster_object[["labels"]] %>%
+  str_replace_all(c("M07"="","F01"="","F04"="","F07"="","F10"="", "F13"="",
+                    "F14"="","F15"="", "F17"="","F22"="","M02"="","M04"="",
+                    "M03"="","M05"="","M08"="","M12"="","M14"="","M15"="",
+                    "M17"="","_o"=" 1", "_c"=" 2", "ang"="angry","calm"="calm","disg"="disgust",
+                    "exc"="excited","fear"="fear", "hap"="happy",
+                    "neut"="neutral","sad"="sad", "surp"="surprise"))
+  cluster_object
+}
+
+clean_cluster <- function(d,cur_method="ward.D2",clean_labels=TRUE) {
+  cur_cluster <- d %>%
+    hclust(method = cur_method)
+  if (clean_labels) {
+    cur_cluster <- clean_labels_sort(cur_cluster)
+  }
+  cur_cluster
+}
+
+cut_cluster <- function(clst,cluster_num=3,add_ratings=TRUE) {
+  #create labels data frame to retain old label names (useful for joining)
+  labels=data.frame(old_label=pluck(clst,"old_label"),label=pluck(clst,"labels"))
+  clst %>%
+    cutree(cluster_num) %>%
+    as.data.frame() %>%
+    tibble::rownames_to_column("label") %>%
+    left_join(labels) %>%
+    rename(cluster3 = ".") %>%
+    dplyr::left_join(ratings_clean, by = c("old_label")) %>%
+    mutate(cluster3 = as.factor(cluster3))
+}
+```
+
+# Group data by age groups and age bins
+```{r group data, warning=FALSE}
+#average across all distances
+avg_dist_long_byGroup <- subj_dist_long %>%
+  group_by(sort,age_group,item1,item2) %>%
+  summarize(avg_dist=mean(dist)) %>%
+  ungroup() %>%
+  mutate(sort=as.character(sort),age_group=as.character(age_group),item1=as.character(item1),item2=as.character(item2))
+
+#average distance object organized by sorting group
+avg_dist_byGroup <- avg_dist_long_byGroup %>%
+  group_by(sort,age_group) %>%
+  nest() %>%
+  mutate(dist_obj = purrr::map(data, long_to_dist))
+
+#average across all distances
+avg_dist_long_byBin <- subj_dist_long %>%
+  group_by(sort,age_bin,item1,item2) %>%
+  summarize(avg_dist=mean(dist)) %>%
+  ungroup() %>%
+  mutate(sort=as.character(sort),age_bin=as.character(age_bin),item1=as.character(item1),item2=as.character(item2))
+
+#average distance object organized by sorting group
+avg_dist_byBin <- avg_dist_long_byBin %>%
+  group_by(sort,age_bin) %>%
+  nest() %>%
+  mutate(dist_obj = purrr::map(data, long_to_dist))
+
+#### create overall grouped cluster objects ####
+clusters_by_group <- avg_dist_byGroup %>%
+  mutate(cluster=lapply(dist_obj, function(d) clean_cluster(d))) %>%
+  mutate(dend = lapply(cluster, function(clst) clst %>% as.dendrogram())) %>%
+  #cut cluster into 3 groups
+  mutate(cut_cluster=lapply(cluster, function(clst) cut_cluster(clst,cluster_num=3))) %>%
+  #fit model predicting valence from clusters
+  mutate(model_valence = lapply(cut_cluster, function(df) if (sort=="Practice") {NA} else {lm(valence~cluster3, data=df)}))
+
+clusters_by_bin <- avg_dist_byBin %>%
+  mutate(cluster=lapply(dist_obj, function(d) clean_cluster(d))) %>%
+  mutate(dend = lapply(cluster, function(clst) clst %>% as.dendrogram())) %>%
+  #cut cluster into 3 groups
+  mutate(cut_cluster=lapply(cluster, function(clst) cut_cluster(clst,cluster_num=3))) %>%
+  #fit model predicting valence from clusters
+  mutate(model_valence = lapply(cut_cluster, function(df) if (sort=="Practice") {NA} else {lm(valence~cluster3, data=df)}))
+```
+
+# Age Group (Adults v. Kids)
+
+###  Same Individual Sort
+
+#### Hclust
+
+```{r}
+# hclust solution
+s1k <- clusters_by_group %>% filter(age_group=="kids",sort=="Sort1") %>% pull(cluster) %>% pluck(1)
+s1a <- clusters_by_group %>% filter(age_group=="adults",sort=="Sort1") %>% pull(cluster) %>% pluck(1)
+```
+
+#### Does cluster group predict valence ratings?
+```{r}
+#children
+clusters_by_group %>% filter(sort=="Sort1"&age_group=="kids") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+
+#adults
+clusters_by_group %>% filter(sort=="Sort1"&age_group=="adults") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+###  Different Individuals Sort
+
+#### Hclust
+
+```{r}
+# hclust solution
+s2k <- clusters_by_group %>% filter(age_group=="kids",sort=="Sort2") %>% pull(cluster) %>% pluck(1)
+s2a <- clusters_by_group %>% filter(age_group=="adults",sort=="Sort2") %>% pull(cluster) %>% pluck(1)
+```
+
+#### Does cluster group predict valence ratings?
+```{r}
+#children
+clusters_by_group %>% filter(sort=="Sort2"&age_group=="kids") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+
+#adults
+clusters_by_group %>% filter(sort=="Sort2"&age_group=="adults") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+# Age Bins
+
+### Practice
+
+#### Hclust
+```{r}
+#extract practice dendrograms
+p3_dend <- clusters_by_bin %>% filter(age_bin=="3 to 4",sort=="Practice") %>% pull(dend) %>% pluck(1)
+p4_dend <- clusters_by_bin %>% filter(age_bin=="4 to 5",sort=="Practice") %>% pull(dend) %>% pluck(1)
+p5_dend <- clusters_by_bin %>% filter(age_bin=="5 to 6",sort=="Practice") %>% pull(dend) %>% pluck(1)
+p6_dend <- clusters_by_bin %>% filter(age_bin=="6 to 7",sort=="Practice") %>% pull(dend) %>% pluck(1)
+pa_dend <- clusters_by_bin %>% filter(age_bin=="adults",sort=="Practice") %>% pull(dend) %>% pluck(1)
+```
+
+#### Similarity Measures
+```{r}
+prac_compare <- dendlist("3-year-olds" = p3_dend, "4-year-olds" = p4_dend, "5-year-olds" = p5_dend, "6-year-olds" = p6_dend, "Adults" = pa_dend)
+
+#Correlation
+ggcorrplot(cor.dendlist(prac_compare), type = "lower", lab=TRUE, outline.color="black", ggtheme = ggplot2::theme_void())
+
+#FM Index and AR Index
+similarity_to_adults_p <- data.frame(
+  sort=rep("Practice",4),
+  age_bin = c("3 to 4","4 to 5","5 to 6","6 to 7"),
+  fm_to_adults=c(
+    Bk(pa_dend, p3_dend, k = 3)$`3`[1],
+    Bk(pa_dend, p4_dend, k = 3)$`3`[1],
+    Bk(pa_dend, p5_dend, k = 3)$`3`[1],
+    Bk(pa_dend, p6_dend, k = 3)$`3`[1]
+  ),
+  ar_to_adults = c(
+    adj.rand.index(cutree(pa_dend, k=3),cutree(p3_dend, k=3)),
+    adj.rand.index(cutree(pa_dend, k=3),cutree(p4_dend, k=3)),
+    adj.rand.index(cutree(pa_dend, k=3),cutree(p5_dend, k=3)),
+    adj.rand.index(cutree(pa_dend, k=3),cutree(p6_dend, k=3))
+  )
+)
+
+similarity_to_adults_p %>%
+  select(age_bin,fm_to_adults,ar_to_adults)%>%
+  kable(
+      caption = "Comparing children's hierarchical clustering solutions to adults' during Practice (k=3)",
+      col.names=c("Age Group","Fowlkes-Mallows Index","Adjusted Rand Index"),
+      digits=c(0,2,2)
+      )
+```
+
+###  Same Individual Sort
+
+#### Hclust and dendrograms
+```{r}
+#Make dendrograms
+s1_3_dend <- clusters_by_bin %>% filter(age_bin=="3 to 4",sort=="Sort1") %>% pull(dend) %>% pluck(1)
+s1_4_dend <- clusters_by_bin %>% filter(age_bin=="4 to 5",sort=="Sort1") %>% pull(dend) %>% pluck(1)
+s1_5_dend <- clusters_by_bin %>% filter(age_bin=="5 to 6",sort=="Sort1") %>% pull(dend) %>% pluck(1)
+s1_6_dend <- clusters_by_bin %>% filter(age_bin=="6 to 7",sort=="Sort1") %>% pull(dend) %>% pluck(1)
+s1_a_dend <- clusters_by_bin %>% filter(age_bin=="adults",sort=="Sort1") %>% pull(dend) %>% pluck(1)
+
+par(mfrow = c(2,3))
+s1_3_dend %>% set("branches_lwd", 2) %>%  set("branches_k_color",value=c(1,1,1), k=3) %>% plot(main = "3-4-year-olds")
+s1_4_dend %>% set("branches_lwd", 2) %>% set("branches_k_color", value=c(2,3,4), k=3) %>% plot(main = "4-5-year-olds")
+s1_5_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,3,4), k=3) %>% plot(main = "5-6-year-olds")
+s1_6_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,4,3), k=3) %>% plot(main = "6-7-year-olds")
+s1_a_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(4,3,2), k=3) %>% plot(main = "Adults")
+
+```
+
+#### Similarity Measures
+```{r}
+#Correlation
+sort1_compare <- dendlist("3-4-year-olds" = s1_3_dend, "4-5-year-olds" = s1_4_dend, "5-6-year-olds" = s1_5_dend, "6-year-olds" = s1_6_dend, "Adults" = s1_a_dend)
+ggcorrplot(cor.dendlist(sort1_compare), type = "lower", lab=TRUE, outline.color="black", ggtheme = ggplot2::theme_void())
+
+similarity_to_adults_s1 <- data.frame(
+  sort=rep("Sort1",4),
+  age_bin = c("3 to 4","4 to 5","5 to 6","6 to 7"),
+  fm_to_adults=c(
+    Bk(s1_a_dend, s1_3_dend, k = 3)$`3`[1],
+    Bk(s1_a_dend, s1_4_dend, k = 3)$`3`[1],
+    Bk(s1_a_dend, s1_5_dend, k = 3)$`3`[1],
+    Bk(s1_a_dend, s1_6_dend, k = 3)$`3`[1]
+  ),
+  ar_to_adults = c(
+    adj.rand.index(cutree(s1_a_dend, k=3),cutree(s1_3_dend, k=3)),
+    adj.rand.index(cutree(s1_a_dend, k=3),cutree(s1_4_dend, k=3)),
+    adj.rand.index(cutree(s1_a_dend, k=3),cutree(s1_5_dend, k=3)),
+    adj.rand.index(cutree(s1_a_dend, k=3),cutree(s1_6_dend, k=3))
+  )
+)
+
+similarity_to_adults_s1 %>%
+  select(age_bin,fm_to_adults,ar_to_adults)%>%
+  kable(
+      caption = "Comparing children's hierarchical clustering solutions to adults' during the Same Individual Sort (k=3)",
+      col.names=c("Age Group","Fowlkes-Mallows Index","Adjusted Rand Index"),
+      digits=c(0,2,2)
+      )
+```
+
+#### Does cluster group predict valence ratings?
+```{r}
+#children
+## 3 to 4
+clusters_by_bin %>% filter(sort=="Sort1"&age_bin=="3 to 4") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+
+## 4 to 5
+clusters_by_bin %>% filter(sort=="Sort1"&age_bin=="4 to 5") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+
+## 5 to 6
+clusters_by_bin %>% filter(sort=="Sort1"&age_bin=="5 to 6") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+
+## 6 to 7
+clusters_by_bin %>% filter(sort=="Sort1"&age_bin=="6 to 7") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+
+# adults
+clusters_by_bin %>% filter(sort=="Sort1"&age_bin=="adults") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
+
+###  Different Individuals Sort
+
+#### Hclust and dendrograms
+```{r}
+#Make dendrograms
+s2_3_dend <- clusters_by_bin %>% filter(age_bin=="3 to 4",sort=="Sort2") %>% pull(dend) %>% pluck(1)
+s2_4_dend <- clusters_by_bin %>% filter(age_bin=="4 to 5",sort=="Sort2") %>% pull(dend) %>% pluck(1)
+s2_5_dend <- clusters_by_bin %>% filter(age_bin=="5 to 6",sort=="Sort2") %>% pull(dend) %>% pluck(1)
+s2_6_dend <- clusters_by_bin %>% filter(age_bin=="6 to 7",sort=="Sort2") %>% pull(dend) %>% pluck(1)
+s2_a_dend <- clusters_by_bin %>% filter(age_bin=="adults",sort=="Sort2") %>% pull(dend) %>% pluck(1)
+
+
+par(mfrow = c(2,3))
+s2_3_dend %>% set("branches_lwd", 2) %>%  set("branches_k_color",value=c(1,1,1), k=3) %>% plot(main = "3-4-year-olds")
+s2_4_dend %>% set("branches_lwd", 2) %>% set("branches_k_color", value=c(2,3,4), k=3) %>% plot(main = "4-5-year-olds")
+s2_5_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,3,4), k=3) %>% plot(main = "5-6-year-olds")
+s2_6_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,4,3), k=3) %>% plot(main = "6-7-year-olds")
+s2_a_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(4,2,3), k=3) %>% plot(main = "Adults")
+```
+
+#### Similarity Measures
+```{r}
+#Correlation
+sort2_compare <- dendlist("3-year-olds" = s2_3_dend, "4-year-olds" = s2_4_dend, "5-year-olds" = s2_5_dend, "6-year-olds" = s2_6_dend, "Adults" = s2_a_dend)
+ggcorrplot(cor.dendlist(sort2_compare), type = "lower", lab=TRUE, outline.color="black", ggtheme = ggplot2::theme_void())
+
+# FM Index and AR Index
+similarity_to_adults_s2 <- data.frame(
+  sort=rep("Sort2",4),
+  age_bin = c("3 to 4","4 to 5","5 to 6","6 to 7"),
+  fm_to_adults=c(
+    Bk(s2_a_dend, s2_3_dend, k = 3)$`3`[1],
+    Bk(s2_a_dend, s2_4_dend, k = 3)$`3`[1],
+    Bk(s2_a_dend, s2_5_dend, k = 3)$`3`[1],
+    Bk(s2_a_dend, s2_6_dend, k = 3)$`3`[1]
+  ),
+  ar_to_adults = c(
+    adj.rand.index(cutree(s2_a_dend, k=3),cutree(s2_3_dend, k=3)),
+    adj.rand.index(cutree(s2_a_dend, k=3),cutree(s2_4_dend, k=3)),
+    adj.rand.index(cutree(s2_a_dend, k=3),cutree(s2_5_dend, k=3)),
+    adj.rand.index(cutree(s2_a_dend, k=3),cutree(s2_6_dend, k=3))
+  )
+)
+
+similarity_to_adults_s2 %>%
+  select(age_bin,fm_to_adults,ar_to_adults)%>%
+  kable(
+      caption = "Comparing children's hierarchical clustering solutions to adults' during the Different Individual Sort (k=3)",
+      col.names=c("Age Group","Fowlkes-Mallows Index","Adjusted Rand Index"),
+      digits=c(0,2,2)
+      )
+```
+
+#### Does cluster group predict valence ratings?
+```{r}
+#children
+## 3 to 4
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="3 to 4") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+
+## 4 to 5
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="4 to 5") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+
+## 5 to 6
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="5 to 6") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+
+## 6 to 7
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="6 to 7") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+
+# adults
+clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="adults") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+```
