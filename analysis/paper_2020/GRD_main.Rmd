@@ -55,7 +55,7 @@ For more background information and the underlying data, visit the OSF repositor
 
 ## Emotion Categories {.tabset}
 
-We first examined whether participants used common English language emotion categories (e.g., sad, happy, anger, disgust, fear, surprise, neutral, calm, excitement ) to structure their placement of facial cues. To do so, we computed the average distance between images that shared the same category label (e.g., the distance of one happy face to another happy face) versus images that had differing category labels (e.g., the distance of one happy face to a sad face) for each participant (see also Unger et al., 2016 for a similar approach). 
+We first examined whether participants used common English language emotion categories (e.g., sad, happy, anger, disgust, fear, surprise, neutral, calm, excitement ) to structure their placement of facial cues. To do so, we computed the average distance between images that shared the same category label (e.g., the distance of one happy face to another happy face) versus images that had differing category labels (e.g., the distance of one happy face to a sad face) for each participant (see also Unger et al., 2016 for a similar approach). We then fit linear mixed-effects models predicting the average distance between item pairs from the category match for an image pair (same category pair vs. different category pair; centered) across age groups, including by-participant random intercepts and by-participant random slopes for category match. 
 
 ```{r, warning=F,message=F}
 #read in data
@@ -434,6 +434,8 @@ anova(m4)
 
 ## Comparing Dimensions of Affect and Emotion Categories
 
+We examined how well emotion category predicted participant’s sorting behavior compared to valence and arousal. To do so, we computed the average distance between all stimulus pairs (n = 306 unique pairs) for each age group and predicted these distances from a pair’s similarity on each dimension of interest simultaneously. This general linear model revealed how much each dimension aided in explaining variance in each age group’s sorting behavior. First, we estimated the use of bipolar valence, arousal, and whether image pairs shared the same discrete emotion category (0 = different category pair; 1 = same category pair). Second, we estimated the effects of bivariate valence with positivity and negativity as two orthogonal dimensions. 
+
 ### Bipolar valence, arousal, emotion category {.tabset}
 
 #### Table {.tabset}
@@ -715,7 +717,7 @@ Our last sets of analyses took a bottom-up approach, using unsupervised methods 
 
 ### MDS Analyses {.tabset}
 
-First, we used 2-dimensional multidimensional scaling (MDS) to visually represent participant’s classifications (Figure 3). To better understand the dimensions, we fit vectors of image ratings for bipolar valence, arousal, positivity, and negativity onto our MDS solution over 1,000 permutations to derive the squared correlation coefficient of each vector (envfit in Vegan package; Oksanen, 2019). 
+First, we used 2-dimensional multidimensional scaling (MDS) to visually represent participant’s classifications. To better understand the dimensions, we fit vectors of image ratings for bipolar valence, arousal, positivity, and negativity onto our MDS solution over 1,000 permutations to derive the squared correlation coefficient of each vector (envfit in Vegan package; Oksanen, 2019). 
 
 ```{r}
 subj_dist_long <- read.csv(here(root_path,"analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
@@ -1020,6 +1022,8 @@ clusters_by_bin <- avg_dist_byBin %>%
   mutate(model_valence = lapply(cut_cluster, function(df) if (sort=="Practice") {NA} else {lm(valence~cluster3, data=df)}))
 ```
 
+Hierarchical clustering results and similarity across age groups is visualized using dendograms and correlation matrices between dendograms.
+
 #### Dendrograms {.tabset}
 
 ##### Same Individual {.tabset}
@@ -1230,7 +1234,7 @@ The clusters were strong predictors of valence ratings across age group (providi
 
 ##### Children vs. Adults {.tabset}
 
-###### Same Individual {.tabset}
+###### Same Individual
 
 ####### Children
 ```{r}
