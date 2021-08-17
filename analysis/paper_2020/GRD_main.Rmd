@@ -51,7 +51,7 @@ Analysis walkthrough for the paper
 
 Anonymous Authors (in prep). Developmental changes in children’s representation of facial cues of emotion.
 
-For more background information and the underlying data, visit the OSF repository for this report: [OSF site](https://osf.io/7bkgp/)
+For more background information and the underlying data, visit the OSF repository for this report: [OSF site](https://osf.io/7bkgp/?view_only=943f7b23d25b4b3595240894220130cd)
 
 ## Emotion Categories {.tabset}
 
