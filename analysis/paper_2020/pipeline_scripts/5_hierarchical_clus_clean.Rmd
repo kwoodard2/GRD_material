@@ -27,6 +27,7 @@ library(fossil)
 library(knitr)
 source("Grid_helper_functions.R")
 theme_set(theme_cowplot())
+root_path <- here()
 
 #read in data
 subj_dist_long <- read.csv(here("analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
@@ -229,20 +230,24 @@ s1_5_dend <- clusters_by_bin %>% filter(age_bin=="5 to 6",sort=="Sort1") %>% pul
 s1_6_dend <- clusters_by_bin %>% filter(age_bin=="6 to 7",sort=="Sort1") %>% pull(dend) %>% pluck(1)
 s1_a_dend <- clusters_by_bin %>% filter(age_bin=="adults",sort=="Sort1") %>% pull(dend) %>% pluck(1)
 
+png(filename=here(root_path,"analysis","paper_2020","plots","sort1_dendro.png"),res=300,width=2400, height=1200)
 par(mfrow = c(2,3))
-s1_3_dend %>% set("branches_lwd", 2) %>%  set("branches_k_color",value=c(1,1,1), k=3) %>% plot(main = "3-4-year-olds")
-s1_4_dend %>% set("branches_lwd", 2) %>% set("branches_k_color", value=c(2,3,4), k=3) %>% plot(main = "4-5-year-olds")
-s1_5_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,3,4), k=3) %>% plot(main = "5-6-year-olds")
-s1_6_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,4,3), k=3) %>% plot(main = "6-7-year-olds")
+s1_3_dend %>% set("branches_lwd", 2) %>%  set("branches_k_color",value=c(1,1,1), k=3) %>% plot(main = "3-year-olds")
+s1_4_dend %>% set("branches_lwd", 2) %>% set("branches_k_color", value=c(2,3,4), k=3) %>% plot(main = "4-year-olds")
+s1_5_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,3,4), k=3) %>% plot(main = "5-year-olds")
+s1_6_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,4,3), k=3) %>% plot(main = "6-year-olds")
 s1_a_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(4,3,2), k=3) %>% plot(main = "Adults")
+dev.off()
 
 ```
 
 #### Similarity Measures
 ```{r}
 #Correlation
-sort1_compare <- dendlist("3-4-year-olds" = s1_3_dend, "4-5-year-olds" = s1_4_dend, "5-6-year-olds" = s1_5_dend, "6-year-olds" = s1_6_dend, "Adults" = s1_a_dend)
+sort1_compare <- dendlist("3-year-olds" = s1_3_dend, "4-year-olds" = s1_4_dend, "5-year-olds" = s1_5_dend, "6-year-olds" = s1_6_dend, "Adults" = s1_a_dend)
 ggcorrplot(cor.dendlist(sort1_compare), type = "lower", lab=TRUE, outline.color="black", ggtheme = ggplot2::theme_void())
+ggsave(here(root_path,"analysis","paper_2020","plots","sort1_dendro_corr.png"),width=5,height=3.6)
+
 
 similarity_to_adults_s1 <- data.frame(
   sort=rep("Sort1",4),
@@ -300,13 +305,14 @@ s2_5_dend <- clusters_by_bin %>% filter(age_bin=="5 to 6",sort=="Sort2") %>% pul
 s2_6_dend <- clusters_by_bin %>% filter(age_bin=="6 to 7",sort=="Sort2") %>% pull(dend) %>% pluck(1)
 s2_a_dend <- clusters_by_bin %>% filter(age_bin=="adults",sort=="Sort2") %>% pull(dend) %>% pluck(1)
 
-
+png(filename=here(root_path,"analysis","paper_2020","plots","sort2_dendro.png"),res=300,width=2400, height=1200)
 par(mfrow = c(2,3))
-s2_3_dend %>% set("branches_lwd", 2) %>%  set("branches_k_color",value=c(1,1,1), k=3) %>% plot(main = "3-4-year-olds")
-s2_4_dend %>% set("branches_lwd", 2) %>% set("branches_k_color", value=c(2,3,4), k=3) %>% plot(main = "4-5-year-olds")
-s2_5_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,3,4), k=3) %>% plot(main = "5-6-year-olds")
-s2_6_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,4,3), k=3) %>% plot(main = "6-7-year-olds")
+s2_3_dend %>% set("branches_lwd", 2) %>%  set("branches_k_color",value=c(1,1,1), k=3) %>% plot(main = "3-year-olds")
+s2_4_dend %>% set("branches_lwd", 2) %>% set("branches_k_color", value=c(2,3,4), k=3) %>% plot(main = "4-year-olds")
+s2_5_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,3,4), k=3) %>% plot(main = "5-year-olds")
+s2_6_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(2,4,3), k=3) %>% plot(main = "6-year-olds")
 s2_a_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(4,2,3), k=3) %>% plot(main = "Adults")
+dev.off()
 ```
 
 #### Similarity Measures
@@ -314,6 +320,8 @@ s2_a_dend %>% set("branches_lwd", 2) %>% set("branches_k_color",value=c(4,2,3), 
 #Correlation
 sort2_compare <- dendlist("3-year-olds" = s2_3_dend, "4-year-olds" = s2_4_dend, "5-year-olds" = s2_5_dend, "6-year-olds" = s2_6_dend, "Adults" = s2_a_dend)
 ggcorrplot(cor.dendlist(sort2_compare), type = "lower", lab=TRUE, outline.color="black", ggtheme = ggplot2::theme_void())
+ggsave(here(root_path,"analysis","paper_2020","plots","sort2_dendro_corr.png"),width=5,height=3.6)
+
 
 # FM Index and AR Index
 similarity_to_adults_s2 <- data.frame(

@@ -14,7 +14,8 @@ output:
 ```{r setup, include=FALSE}
 #knitr::opts_chunk$set(echo = TRUE)
 library(knitr)
-knitr::opts_chunk$set(results = 'asis',   
+knitr::opts_chunk$set(
+  #results = 'asis',   
                 comment = NA,
                 prompt  = FALSE,
                 cache   = FALSE,
@@ -35,6 +36,7 @@ library(here)
 library(cowplot)
 library(lme4)
 library(car)
+library(lmerTest)
 library(harrietr)
 library(ggdendro)
 library(ggimage)
@@ -45,20 +47,21 @@ library(corrplot)
 library(ggcorrplot)
 library(cluster)
 library(factoextra)
+library(rmcorr)
 source("Grid_helper_functions.R")
 theme_set(theme_cowplot())
 root_path <- here()
 
-subj_dist_long <- read.csv(here(root_path,"analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
-ratings <- read.csv(here(root_path,"analysis","paper_2020","processed_data","ratings_data.csv"))
-ratings_pairs <- read.csv(here(root_path,"analysis","paper_2020","processed_data","ratings_item_pairs.csv"))
+subj_dist_long <- read.csv(here("analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
+ratings <- read.csv(here("analysis","paper_2020","processed_data","ratings_data.csv"))
+ratings_pairs <- read.csv(here("analysis","paper_2020","processed_data","ratings_item_pairs.csv"))
 
 ```
 
 # 1. Practice Phase 
-To assess whether participants in each age group demonstrated understanding of the grid task during the practice phase, we investigated the degree to which participants consistently arranged images belonging to the same superordinate categories (vehicles: car and bus; animals: squirrel and bird) closer together in space. We computed the average distance between images belonging to the same superordinate category (vehicles or animals) for each participant, and then compared the average distances for item pairs sharing the same category to item pairs from different categories. 3-year-olds did not consistently arrange items belonging to the same superordinate category closer together in space, (paired t-test: t(20) = -0.046, p = .96). This suggests that children in this age group were not consistently sorting images according to superordinate categories and may have struggled with the task instructions. However, we included 3-year-olds in all analyses as we had no reason to exclude this group a priori. All other age groups consistently sorted images belonging to the same category closer together in the grid space (4-year-olds: t(34) = 5.26, p < .001; 5-year-olds: t(27) = 5.42, p < .001; 6-year-olds: t(22) = 8.55, p < .001; adults: t(39) = 29.10, p < .001).
+To assess whether participants in each age group demonstrated understanding of the grid task during the practice phase, we investigated the degree to which participants consistently arranged images belonging to the same superordinate categories (vehicles: car and bus; animals: squirrel and bird) closer together in space. We computed the average distance between images belonging to the same superordinate category (vehicles or animals) for each participant, and then compared the average distances for item pairs sharing the same category to item pairs from different categories. 3-year-olds did not consistently arrange items belonging to the same superordinate category closer together in space, (paired t-test: t(20) = -0.046, p = .96). This suggests that children in this age group were not consistently sorting images according to superordinate categories and may have struggled with the task instructions. However, we included 3-year-olds in all analyses as we had no reason to exclude this group a priori. All other age groups consistently sorted images belonging to the same category closer together in the grid space (4-year-olds: t(34) = 5.03, p < .001; 5-year-olds: t(27) = 5.42, p < .001; 6-year-olds: t(22) = 8.55, p < .001; adults: t(39) = 29.10, p < .001).
 
-3-year-olds during the practice phase did not appear to use superordinate categories to guide their similarity judgments. Rather, children in this age range appeared to approach the task with many different strategies: some did appear to use superordinate categories like animals and vehicles (N = 5), some separated each image far apart, viewing each stimulus as distinct (N=4), some appeared to focus on other perceptual features, like color, to guide their decisions (N = 5), and some appeared to sort at random (N = 7). However, our observations in this regard are subjective and future research will need to adjust the task to better understand and tease apart possibilities for how these youngest children understood the stimuli.
+3-year-olds during the practice phase did not appear to use superordinate categories to guide their similarity judgments. Rather, children in this age range appeared to approach the task with many different strategies: some did appear to use superordinate categories like animals and vehicles (n = 5), some separated each image far apart, viewing each stimulus as distinct (n = 4), some appeared to focus on other perceptual features, like color, to guide their decisions (n = 5), and some appeared to sort at random (n = 7). However, our observations in this regard are subjective and future research will need to adjust the task to better understand and tease apart possibilities for how these youngest children understood the stimuli.
 
 ```{r practice, warning = FALSE}
 library(broom)
@@ -263,16 +266,12 @@ p <- ggplot(avg_dist_diff_cat_across_subj,aes(x=age_bin,y=average_dist,fill=age_
 p
 ```
 
-
-
-
-## Evaluative Space Grid Categories
-The Evaluative Space Grid (ESG) is often divided into four sections: polarizing positive (high positivity, low negativity), polarizing negative (high negativity, low positivity), indifferent (low positivity and negativity), and ambiguous (high positivity and negativity). Here we examine of images belonging to the same ESG categories are placed more closely together. Notably, we see that by around 4-year-of-age children are using ESG category to guide their sorting behaviors.
+## Evaluative Space Grid Categories {.tabset}
+The Evaluative Space Grid (ESG) is often divided into four sections: polarizing positive (high positivity, low negativity), polarizing negative (high negativity, low positivity), indifferent (low positivity and negativity), and ambiguous (high positivity and negativity). Here we examine if images belonging to the same ESG categories are placed more closely together. Notably, we see that by around 4-year-of-age children are using ESG category to guide their sorting behaviors.
 
 ```{r esg data prep, include=FALSE}
-
 #focus on differences in dist (same v. between categories)
-avg_dist_diff_cat_by_subj <- subj_dist_long %>%
+avg_dist_diff_esg_by_subj <- subj_dist_long %>%
   filter(sort!="Practice") %>% 
   group_by(subject, Age, Gender, age_bin,age_group,sort,esg_pair) %>%
   summarize(avg_dist=mean(dist,na.rm=T))  %>%
@@ -284,14 +283,14 @@ avg_dist_diff_cat_by_subj <- subj_dist_long %>%
   mutate(sort_name=ifelse(sort=="Sort1","Same Individual","Different Individuals")) %>%
   ungroup()
 #average across subjects  by age bin
-avg_dist_diff_cat_across_subj <- avg_dist_diff_cat_by_subj %>%
+avg_dist_diff_esg_across_subj <- avg_dist_diff_esg_by_subj %>%
   select(-between,-within) %>%
   group_by(age_bin,age_group,sort,sort_name) %>%
   summarize(N=n(),average_dist=mean(avg_dist_diff,na.rm=T),ci_dist=qt(0.975, N-1)*sd(avg_dist_diff,na.rm=T)/sqrt(N))
 ```
 
 ```{r esg plot, warning=FALSE}
-p <- ggplot(filter(avg_dist_diff_cat_across_subj, sort!="Practice"),aes(x=sort_name,y=average_dist,fill=age_bin,color=age_bin, linetype=sort_name))+
+p <- ggplot(filter(avg_dist_diff_esg_across_subj, sort!="Practice"),aes(x=sort_name,y=average_dist,fill=age_bin,color=age_bin, linetype=sort_name))+
   geom_errorbar(aes(ymin=average_dist-ci_dist,ymax=average_dist+ci_dist),width=0,size=1)+
   geom_point(size=2.5)+
   facet_wrap(~age_bin,nrow=1, labeller = age_labeller, strip.position = c("bottom"))+
@@ -318,9 +317,43 @@ p
 ```
 
 
+We also fit a linear mixed-effects model estimating the average distance between item pairs for children from age (in years, as a continuous predictor; mean-centered), the category match for an image pair (same ESG category pair vs. different ESG category pair; centered), and their interaction. We included a by-participant random intercept and a by-participant random slope for ESG category match.
+
+``` {r}
+#### Summarizing Distances ####
+#average distances across category types  within each participant
+avg_dist_esg_by_subj <- subj_dist_long %>%
+  group_by(subject, Age, Gender, age_bin,age_group,sort,esg_pair) %>%
+  summarize(N=n(),avg_dist=mean(dist),ci_dist=qt(0.975, N-1)*sd(dist,na.rm=T)/sqrt(N))
+
+avg_dist_esg_by_subj <- avg_dist_esg_by_subj %>%
+  ungroup() %>%
+  mutate(AgeC=Age-mean(Age,na.rm=T),
+         esg_pairC=ifelse(esg_pair=="diff",-0.5,0.5),
+         age_groupC=ifelse(age_group=="kids",-0.5,0.5),
+         sortC=ifelse(sort=="Sort1",-0.5,0.5))
+
+m <- lmer(avg_dist~esg_pairC*AgeC+(1+esg_pairC|subject),data=filter(avg_dist_esg_by_subj,sort!="Practice"&age_group=="kids"))
+summary(m)
+```
+
+The distances between images belonging to the same vs. different ESG categories increased with age (b = `r round(summary(m)$coefficients[4,1],2)`, Wald 95% CI = [`r round(confint(m, method="Wald")[8,1],2)`, `r round(confint(m, method="Wald")[8,2],2)`], F(1,`r round(as.numeric(anova(m)[3,4]),2)` = `r round(as.numeric(anova(m)[3,5]),2)`), `r ifelse(summary(m)$coefficients[4,5]<.001, "p < .001",paste0("p =", as.character(round(summary(m)$coefficients[4,5],3))))`). As children grow older, they become more likely to sort images belonging to the same emotion category closer together. 
+
+```{r}
+#3-year-olds
+m_3 <- lmer(avg_dist~esg_pairC+(1+esg_pairC|subject),data=filter(avg_dist_esg_by_subj,age_bin=="3 to 4"&sort!="Practice"))
+#4-year-olds
+m_4  <- lmer(avg_dist~esg_pairC+(1+esg_pairC|subject),data=filter(avg_dist_esg_by_subj,age_bin=="4 to 5"&sort!="Practice"))
+#5-year-olds
+m_5 <- lmer(avg_dist~esg_pairC+(1+esg_pairC|subject),data=filter(avg_dist_esg_by_subj,age_bin=="5 to 6"&sort!="Practice"))
+#6-year-olds
+m_6 <- lmer(avg_dist~esg_pairC+(1+esg_pairC|subject),data=filter(avg_dist_esg_by_subj,age_bin=="6 to 7"&sort!="Practice"))
+#adults
+m_a <- lmer(avg_dist~esg_pairC+(1+esg_pairC|subject),data=filter(avg_dist_esg_by_subj,age_bin=="adults"&sort!="Practice"))
+```
 
 
-We also fit a linear mixed-effects model estimating the average distance between item pairs for children from age (in years, as a continuous predictor; mean-centered), the category match for an image pair (same category pair vs. different category pair; centered), and their interaction. We included a by-participant random intercept and a by-participant random slope for category match. The distances between images belonging to the same vs. different ESG categories increased with age, b = -.03, Wald 95% CI = [-.045, -.02], F(1,103.68) = 43.01, p < .001. As children grow older, they become more likely to sort images belonging to the same emotion category closer together. In follow-up analyses investigating children’s sorting behavior in each of our age groups, we found that 3-year-olds (p = .52) did not reliability sort images from the same ESG category closer together, while 4-year-olds  (b = -.02, Wald 95% CI = [-.04, -.01], F(1,32.745) = 10.55, p < .01), 5-year-olds (b = -.08, Wald 95% CI = [-.011, -.0455], F(1,27) = 23.35, p < .001) and 6-year-olds did (b = -.11, Wald 95% CI = [-.14, -.08], F(1,22) = 56.255, p < .001).
+In follow-up analyses investigating children’s sorting behavior in each of our age groups, we found that 3-year-olds (p = `r round(as.numeric(anova(m_3)[1,6]),2)`) did not reliability sort images from the same ESG category closer together, while 4-year-olds  (b = `r round(summary(m_4)$coefficients[2,1],2)`, Wald 95% CI = [`r round(confint(m_4, method="Wald")[6,1],2)`, `r round(confint(m_4, method="Wald")[6,2],2)`], F(1,`r round(as.numeric(anova(m_4)[1,4]),2)` = `r round(as.numeric(anova(m_4)[1,5]),2)`), `r ifelse(summary(m_4)$coefficients[2,5]<.001, "p < .001",paste0("p =", as.character(round(summary(m_4)$coefficients[2,5],3))))`), 5-year-olds (b = `r round(summary(m_5)$coefficients[2,1],2)`, Wald 95% CI = [`r round(confint(m_5, method="Wald")[6,1],2)`, `r round(confint(m_5, method="Wald")[6,2],2)`], F(1,`r round(as.numeric(anova(m_5)[1,4]),2)` = `r round(as.numeric(anova(m_5)[1,5]),2)`), `r ifelse(summary(m_5)$coefficients[2,5]<.001, "p < .001",paste0("p =", as.character(round(summary(m_5)$coefficients[2,5],3))))`) and 6-year-olds did (b = `r round(summary(m_6)$coefficients[2,1],2)`, Wald 95% CI = [`r round(confint(m_6, method="Wald")[6,1],2)`, `r round(confint(m_6, method="Wald")[6,2],2)`], F(1,`r round(as.numeric(anova(m_6)[1,4]),2)` = `r round(as.numeric(anova(m_6)[1,5]),2)`), `r ifelse(summary(m_6)$coefficients[2,5]<.001, "p < .001",paste0("p =", as.character(round(summary(m_6)$coefficients[2,5],3))))`).
 
 
 ## Mouth Position
@@ -377,7 +410,7 @@ p
 ## Actor Gender
 For actor gender, we only examine the Different Individuals Sort (the Same Individual Sort was all one individual). Here, we look at whether an image was more likely to be placed by another image of the same gender. For instance, participants may have been more likely to place a female face with other female faces.
 
-Overall we don't really find that participants are using actor gender to guide their behaviors. Adults were actually more likely to put actors of the same gender further apart from one another. We believe this is because adults were more likely to use emotion category to guide behavior. During the Different Individuals Sort, each emotion category had one female exemplar and one male exemplar. Thus, using actor gender to guide sorting behavior would cause individuals to use emotion category less.
+Overall we don't find that participants are using actor gender to guide their behaviors. Adults were actually more likely to put actors of the same gender further apart from one another. We believe this is because adults were more likely to use emotion category to guide behavior. During the Different Individuals Sort, each emotion category had one female exemplar and one male exemplar. Thus, using actor gender to guide sorting behavior would cause individuals to use emotion category less.
 ```{r gender data prep, include=FALSE}
 avg_dist_diff_cat_by_subj <- subj_dist_long %>%
   filter(sort=="Sort2") %>% 
@@ -423,6 +456,269 @@ p <- ggplot(filter(avg_dist_diff_cat_across_subj, sort!="Practice"),aes(x=sort_n
         strip.text.x = element_text(size=18)) #+
 p
 
+```
+
+
+## Resample w/ equal between and within observations
+
+One possible concern with the above analyses is that there are an unequal numbers of distance observations for the same versus different category pairs: in particular, there are a far greater number of between-category than within-category distance observations. Does this bias the estimates of average distance between within- vs. between-category pairs systematically?
+
+To investigate this question, we conducted an analysis in which we compared our original average distance estimates to estimates derived by resampling from the data such that only equal numbers of between and within observations were considered when computing average distance for within- vs. between-category pairs.
+For each resampled estimate, we randomly sampled (without replacement) 9 random between-category pairings (e.g., happy vs. sad) from each sort (Same Individual and Different Individual) and retained all 9 within-category pairings (e.g., happy vs. happy) from each sort. Thus, for each resampled dataset, there was an equal number of between-category and within-category observations among the 18 observations per participant and sort. For each age group and sorting condition, we then computed the difference between the average distance for between-category pairings and the average distance for within-category pairings to obtain a resampled estimate of the tendency to arrange images by category. We resampled from the dataset in this fashion 1000 times, thus obtaining 1000 resampled estimates of the category-based difference in sorting (see the analysis script 6_resample_category_difference_equal_obs.R for the precise code).
+
+The plot below compares these resampled estimates to the original estimate of the category-based sorting effect (based on the entire dataset), as reported in the main manuscript. We show each resampled estimate of the category-based sorting difference, along with violin plots to visualize their distribution. The large colored dots represent the mean of the resampled estimates and the original mean category-based sorting effect. We also show the 95% CI for the original category-based sorting estimate. The main takeaway from the plot is that the original estimate and the resampled estimates (always computed with an equal number of between-category and within-category estimates) are virtually identical. This indicates that the unequal numbers of between vs. within observations contributing to the original estimate are not systematically biasing the estimate of the category-based sorting effect.
+
+```{r}
+#load the resampled data
+summarized_resample_data <- read.csv( here(root_path,"analysis","paper_2020","processed_data","resampled_equal_obs_avg_category_distance.csv"))
+
+#generate plot
+# for facet wrap naming
+age_names <- list(
+  '3 to 4'="3 y/o",
+  '4 to 5'="4 y/o",
+  '5 to 6'="5 y/o",
+  '6 to 7'="6 y/o",
+  'adults'="adults")
+age_labeller <- function(variable,value){
+  return(age_names[value])
+}
+
+#recreate data from original emotion category plot
+#focus on differences in dist (same v. between categories)
+avg_dist_diff_cat_by_subj <- subj_dist_long %>%
+  group_by(subject, Age, Gender, age_bin,age_group,sort,category_pair) %>%
+  summarize(avg_dist=mean(dist,na.rm=T))  %>%
+  ungroup() %>%
+  group_by(subject, Age, Gender, age_bin,age_group,sort) %>%
+  pivot_wider(names_from=category_pair,values_from=avg_dist) %>%
+  mutate(avg_dist_diff=between-within) %>%
+  mutate(sort_name=ifelse(sort=="Sort1","Same Individual",ifelse(sort=="Sort2","Different Individuals","Practice"))) %>%
+  ungroup()
+
+#average across subjects  by age bin
+avg_dist_diff_cat_across_subj <- avg_dist_diff_cat_by_subj %>%
+  select(-between,-within) %>%
+  group_by(age_bin,age_group,sort,sort_name) %>%
+  summarize(N=n(),average_dist=mean(avg_dist_diff,na.rm=T),ci_dist=qt(0.975, N-1)*sd(avg_dist_diff,na.rm=T)/sqrt(N))
+
+# combine with the resampled data
+comparison_data <- summarized_resample_data %>%
+  mutate(resample_group="resampled") %>%
+  bind_rows(filter(avg_dist_diff_cat_across_subj,sort!="Practice") %>% mutate(resample_group="original"))
+
+p1 <- ggplot(filter(comparison_data, sort_name=="Same Individual"),aes(x=resample_group,y=average_dist,fill=age_bin,color=age_bin))+
+  geom_violin(data=filter(comparison_data,resample_group=="resampled"&sort_name=="Same Individual"),fill=NA)+
+  geom_jitter(data=filter(comparison_data,resample_group=="resampled"&sort_name=="Same Individual"),alpha=0.01,width=0.1)+
+  geom_errorbar(data=filter(comparison_data,resample_group=="original"&sort_name=="Same Individual"),aes(ymin=average_dist-ci_dist,ymax=average_dist+ci_dist),width=0,size=1)+
+  geom_point(data=filter(comparison_data,resample_group=="original"&sort_name=="Same Individual"),size=4,alpha=1)+
+  stat_summary(data=filter(comparison_data,resample_group=="resampled"&sort_name=="Same Individual"),fun = "mean", geom = "point",size=4)+
+  facet_wrap(~age_bin,nrow=1, labeller = age_labeller, strip.position = c("top"))+
+  geom_hline(yintercept=0)+
+  theme(legend.position=c(.1,.8), legend.title = element_blank(),
+        legend.margin = margin(.5,.5,.5,.5,"cm"),
+        legend.background = element_rect(fill="white",size=0.6,
+                                         linetype="solid", colour ="black")) +
+  #theme(legend.position='top', legend.justification ='center')+
+  scale_color_manual(values=c("#8c510a","#bf812d","#80cdc1","#35978f","#01665e"))+
+  scale_fill_manual(values=c("#8c510a","#bf812d","#80cdc1","#35978f","#01665e"))+
+  guides(color=FALSE) +
+  guides(fill=FALSE) +
+  #scale_y_continuous(breaks=c(0,0.1,0.2,0.3, 0.4, 0.5,0.6), limits=c(0,0.5))+
+  ylab("Sorting by Emotion Categories \nLow<----------------------------------->High")+
+  xlab("Estimates")+
+  labs(linetype = "Sorting Phase") +
+  ggtitle("Same Individual Sort")+
+  theme(#axis.line = element_blank(),
+    #axis.text.x  = element_blank(),
+    #axis.ticks.x= element_blank(),
+    axis.text.x  = element_text(angle=90, vjust=0.5, size=10),
+    axis.title.x = element_text(size=14,face="bold"),
+    axis.text.y =  element_text(size=12),
+    axis.title.y= element_text(size=12,face="bold"),
+    strip.text.x = element_text(size=12),
+    plot.title = element_text(hjust = 0.5,size=14))
+p2 <- ggplot(filter(comparison_data, sort_name=="Different Individuals"),aes(x=resample_group,y=average_dist,fill=age_bin,color=age_bin))+
+  geom_violin(data=filter(comparison_data,resample_group=="resampled"&sort_name=="Different Individuals"),fill=NA)+
+  geom_jitter(data=filter(comparison_data,resample_group=="resampled"&sort_name=="Different Individuals"),alpha=0.01,width=0.1)+
+  geom_errorbar(data=filter(comparison_data,resample_group=="original"&sort_name=="Different Individuals"),aes(ymin=average_dist-ci_dist,ymax=average_dist+ci_dist),width=0,size=1)+
+  geom_point(data=filter(comparison_data,resample_group=="original"&sort_name=="Different Individuals"),size=4,alpha=1)+
+  stat_summary(data=filter(comparison_data,resample_group=="resampled"&sort_name=="Different Individuals"),fun = "mean", geom = "point",size=4)+
+  facet_wrap(~age_bin,nrow=1, labeller = age_labeller, strip.position = c("top"))+
+  geom_hline(yintercept=0)+
+  theme(legend.position=c(.1,.8), legend.title = element_blank(),
+        legend.margin = margin(.5,.5,.5,.5,"cm"),
+        legend.background = element_rect(fill="white",size=0.6,
+                                         linetype="solid", colour ="black")) +
+  #theme(legend.position='top', legend.justification ='center')+
+  scale_color_manual(values=c("#8c510a","#bf812d","#80cdc1","#35978f","#01665e"))+
+  scale_fill_manual(values=c("#8c510a","#bf812d","#80cdc1","#35978f","#01665e"))+
+  guides(color=FALSE) +
+  guides(fill=FALSE) +
+  #scale_y_continuous(breaks=c(0,0.1,0.2,0.3, 0.4, 0.5,0.6), limits=c(0,0.5))+
+  ylab("Sorting by Emotion Categories \nLow<----------------------------------->High")+
+  xlab("Estimates")+
+  labs(linetype = "Sorting Phase") +
+  ggtitle("Different Individuals Sort")+
+  theme(#axis.line = element_blank(),
+    #axis.text.x  = element_blank(),
+    #axis.ticks.x= element_blank(),
+    axis.text.x  = element_text(angle=90, vjust=0.5, size=10),
+    axis.title.x = element_text(size=14,face="bold"),
+    axis.text.y =  element_text(size=12),
+    axis.title.y= element_text(size=12,face="bold"),
+    strip.text.x = element_text(size=12),
+    plot.title = element_text(hjust = 0.5,size=14))
+plot_grid(p1,p2,nrow=1,labels=c("A","B"),label_size=14)
+```
+
+
+## Correlations in category-based sorting between conditions {.tabset}
+
+We also investigated whether the average distances at which pairs are placed are correlated across the 2 sets (Same vs. Different Individual). First, we correlated the distances between category-based item pairs (happy versus sad) across the two sorts. Second, we investigated category-based correlations at the participant level using a repeated measures correlation.
+
+Across both analyses, we find small correlations for 3- and 4-year-olds. Category-based correlations between sorting conditions become increasingly robust among 5-year-olds and 6-year-olds, with the highest correlations among adults. This pattern mirrors the category-based sorting distance analyses, with 3- and 4-year-olds showing weak or no evidence for category-based sorting and increasing evidence for robust category-based sorting from the age of 5 onward.
+
+### correlation between sorts {.tabset}
+
+```{r}
+#pmap sorting command ensures that same category names are handled alphabetically across sorts. Ensures that ang-calm and calm-ang are handled as equivalent
+subj_dist_by_pair <- subj_dist_long %>% 
+  filter(sort!="Practice") %>%
+  select(subject,age_bin,sort,dist,items,item1,item2,image_cat_1,image_cat_2,mouth1,mouth2) %>% 
+  mutate(img_pairs = pmap_chr(list(image_cat_1,image_cat_2), ~paste(sort(c(...)), collapse = "_")))
+#compute average distance by category pairing, age group, and sort
+corr_mean_overall <- subj_dist_by_pair  %>% group_by(img_pairs,age_bin,sort) %>% summarise(distance=mean(dist,na.rm=TRUE))
+
+#convert to wide format for easier computation of the correlation
+corr_wide <- spread(corr_mean_overall,sort,distance)
+
+#compute correlations for each age group
+#then unlist into a wide data format for easier reporting
+corr_age_group <- corr_wide %>%
+  group_by(age_bin) %>%
+  nest() %>%
+  mutate(correlation_test=lapply(data, function(data) cor.test(data$Sort1,data$Sort2))) %>%
+  mutate_if(is.list, simplify_all) %>%
+  unnest_wider(correlation_test) %>%
+  mutate(across(c("estimate.cor","conf.int1", "conf.int2", "statistic.t", "parameter.df", "p.value"),as.numeric)) %>%
+  mutate(age =case_when(
+    age_bin=="3 to 4" ~ "3-year-olds",
+    age_bin=="4 to 5" ~ "4-year-olds",
+    age_bin=="5 to 6" ~ "5-year-olds",
+    age_bin=="6 to 7" ~ "6-year-olds",
+    TRUE ~ "adults")) %>% 
+  as.tibble()
+
+#display table of outcomes
+tab_corr<- corr_age_group %>%
+  select(age, estimate.cor, conf.int1, conf.int2, statistic.t, parameter.df, p.value) %>%
+  mutate(across(c("estimate.cor","conf.int1", "conf.int2", "statistic.t", "parameter.df"), round, 2)) %>%
+  mutate(p.value=case_when(
+    p.value>=.001 ~ as.character(round(p.value,3)),
+    TRUE ~ "<.001"
+  )) %>%
+  mutate(conf=paste("[",conf.int1,", ",conf.int2,"]",sep="")) %>%
+  relocate(conf, .after=estimate.cor) %>%
+  select(-conf.int1, -conf.int2) %>%
+  gt() %>% 
+  cols_align(align="center") %>% 
+  cols_label(age = md("**Age Groups**"), estimate.cor=md("**Correlation**"), conf=md("**95% CI**"),statistic.t=md("**t-value**"), parameter.df=md("**df**"), p.value=md("**p-value**")) %>%   
+  tab_header(
+    title = md("Correlations for category-based sorting distances between sorting conditions"))
+tab_corr
+```
+
+```{r}
+# plot
+ggplot(corr_wide,aes(Sort1,Sort2,color=age_bin))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  scale_color_manual(values=c("#8c510a","#bf812d","#80cdc1","#35978f","#01665e"))+
+  facet_wrap(~age_bin,nrow=1, labeller = age_labeller, strip.position = c("top"))+
+  theme(legend.position="none")+
+  xlab("Same Individual Sort")+
+  ylab("Different Individuals Sort")
+```
+
+### repeated measures correlation between sorts {.tabset}
+
+
+```{r}
+corr_subj_mean <- subj_dist_by_pair %>% 
+  group_by(subject,age_bin,img_pairs,sort) %>% summarise(distance=mean(dist))
+
+corr_subj_wide <- spread(corr_subj_mean,sort,distance) %>% 
+  mutate(subject=as.factor(subject))
+
+#compute correlations for each subject
+#then unlist into a wide data format for easier reporting
+corr_subj_age_group <- corr_subj_wide %>%
+  group_by(age_bin) %>%
+  nest() %>%
+  mutate(rm_corr_plot=lapply(data, function(data) rmcorr(subject, Sort1, Sort2,dataset=data,CIs="analytic")),
+    rm_corr=lapply(data, function(data) rmcorr(subject, Sort1, Sort2,dataset=data,CIs="analytic")[c("r","df","p","CI")])) %>%
+  mutate_if(is.list, simplify_all) %>%
+  unnest_wider(rm_corr) %>%
+  mutate(age =case_when(
+    age_bin=="3 to 4" ~ "3-year-olds",
+    age_bin=="4 to 5" ~ "4-year-olds",
+    age_bin=="5 to 6" ~ "5-year-olds",
+    age_bin=="6 to 7" ~ "6-year-olds",
+    TRUE ~ "adults")) %>% 
+  as.tibble()
+
+#display table of outcomes
+tab_rmcorr<- corr_subj_age_group %>%
+  select(age, r, CI1, CI2, df, p) %>%
+  mutate(across(c("r","CI1", "CI2","df"), round, 2)) %>%
+  mutate(p=case_when(
+    p>=.001 ~ as.character(round(p,3)),
+    TRUE ~ "<.001"
+  )) %>%
+  mutate(conf=paste("[",CI1,", ",CI2,"]",sep="")) %>%
+  relocate(conf, .after=r) %>%
+  select(-CI1, -CI2) %>%
+  arrange(age) %>%
+  gt() %>% 
+  cols_align(align="center") %>% 
+  cols_label(age = md("**Age Groups**"), r=md("**Correlation**"), conf=md("**95% CI**"), df=md("**df**"), p=md("**p-value**")) %>%   
+  tab_header(
+    title = md("Repeated Measures Correlations for category-based sorting distances between sorting conditions"))
+tab_rmcorr
+```
+
+
+Plots of the repeated measures correlations within each age group can be viewed in the tabs below.
+
+#### 3-year-olds
+
+```{r}
+plot(filter(corr_subj_age_group,age=="3-year-olds")$rm_corr_plot[[1]], overall = TRUE,xlab="Same Individual Sort",ylab="Different Individuals Sort")
+```
+
+#### 4-year-olds
+
+```{r}
+plot(filter(corr_subj_age_group,age=="4-year-olds")$rm_corr_plot[[1]], overall = TRUE,xlab="Same Individual Sort",ylab="Different Individuals Sort")
+```
+
+#### 5-year-olds
+
+```{r}
+plot(filter(corr_subj_age_group,age=="5-year-olds")$rm_corr_plot[[1]], overall = TRUE,xlab="Same Individual Sort",ylab="Different Individuals Sort")
+```
+
+#### 6-year-olds
+
+```{r}
+plot(filter(corr_subj_age_group,age=="6-year-olds")$rm_corr_plot[[1]], overall = TRUE,xlab="Same Individual Sort",ylab="Different Individuals Sort")
+```
+
+#### adults
+
+```{r}
+plot(filter(corr_subj_age_group,age=="adults")$rm_corr_plot[[1]], overall = TRUE,xlab="Same Individual Sort",ylab="Different Individuals Sort")
 ```
 
 # 3. Dimensions of Affect
@@ -570,8 +866,8 @@ ggplot(aes(x=dist_neg,y=dist,color=age_bin2,fill=age_bin2), data=filter(dimensio
 
 ```{r}
 #load in data
-drsq_v_a_ec <- read.csv(here(root_path,"analysis","paper_2020","processed_data","drsqr_v_a_ec.csv"))
-drsq_pn_a_ec <- read.csv(here(root_path,"analysis","paper_2020","processed_data","drsqr_pn_a_ec.csv"))
+drsq_v_a_ec <- read.csv(here("analysis","paper_2020","processed_data","drsqr_v_a_ec.csv"))
+drsq_pn_a_ec <- read.csv(here("analysis","paper_2020","processed_data","drsqr_pn_a_ec.csv"))
 
 drsq_v_a_ec <- drsq_v_a_ec %>% mutate(age_bin=case_when(
   age_bin == "3 to 4" ~ "3 y/o",
@@ -2056,7 +2352,7 @@ ggplot(data=s2_cluster_dL,aes(x=cluster,y=height, fill=age_group)) + geom_bar(st
 Here we present more information about the ratings for all of the different images. Valence and arousal were rated on 7-point Likert scales. Positivity and Negativity where rated on a 4-point scale using the evaluative space grid. 
 ```{r rating data prep}
 library(gmodels)
-raw_ratings <- read.csv(here(root_path,"analysis","paper_2020","processed_data","ratings_raw.csv"))
+raw_ratings <- read.csv(here("analysis","paper_2020","processed_data","ratings_raw.csv"))
 
 ratings_dL <- raw_ratings %>% group_by(participant,image) %>% gather(key = rating_type, value = response, arousal,valence,negativity,positivity,negativity)
 ```
@@ -2137,6 +2433,39 @@ cor2 %>% gt(cor2) %>% cols_align(align="center") %>% cols_label(dist_valence =md
   tab_header(title = md("Different Individual Sort"))
 
 ```
+
+
+
+# 8. Task Instruction Details
+
+The study was divided into for phases (demo, practice, same individual sort and different individual sort).
+
+Demo Sort: 
+1.	Images on screen
+“Today we are going to play a game with pictures. We want to learn how these pictures go together” (pause to look at pictures) “We are going to start a game where we figure out where these different pictures should go.”
+2.	Sort Starts
+“In this game, we have all of these different boxes and we want to figure out which box each picture should go in. The rule of this game is that things that are of the same kind of thing go together and things that are different or not the same kind of thing go apart.”
+
+Practice Sort (NO FEEDBACK):
+1.	Images on screen
+“Now we are going to try the same thing again but with new pictures.” (pause to look at pictures) 
+2.	Sort Starts
+“Now we’re going to play again. Remember things that are of the same kind of thing go together and things that are different or not the same kind of thing go apart.”
+
+Same Individual Sort (NO FEEDBACK):
+1.	Images on screen
+“Great job! Now we are going to play this game but with more pictures. This time, we want to sort the pictures of faces based on how people might feel inside. These are all faces of feelings. Can you see how some of these people might feel inside?”
+(pause to look at pictures) 
+2.	Sort Starts
+“Now we’re going to play again. Remember people that feel the same kind of thing go together and people that feel a different kind of thing go apart.”
+
+Different Individuals Sort (NO FEEDBACK):
+1.	Images on screen
+“Great job! Now we are going to play this game one last time. Remember, this time, we want to sort the pictures of faces based on how people might feel inside. These are all faces of feelings. Can you see how some of these people might feel inside?”
+(pause to look at pictures) 
+2.	Sort Starts
+“Now we’re going to play one last time. Remember people that feel the same kind of thing go together and people that feel a different kind of thing go apart”
+
 
 # Session Info
 

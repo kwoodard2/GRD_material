@@ -282,7 +282,17 @@ for (age_bin in age_bins) {
   temp_drsqr <- compute_deltaRSQ_model(dist_long_byGroup,age_bin,predictors=c("dist_valence","dist_arousal","emotion_pair_same"),dv="average_dist")
   drsq_v_a_ec <- bind_rows(drsq_v_a_ec,temp_drsqr)
 }
+write.csv(drsq_v_a_ec,here(root_path,"analysis","paper_2020","processed_data","drsqr_v_a_ec.csv"),row.names=F)
 
+#clean labels for plot
+age_names <- list(
+  '3 to 4'="3-year-olds",
+  '4 to 5'="4-year-olds",
+  '5 to 6'="5-year-olds",
+  '6 to 7'="6-year-olds",
+  'adults'="adults")
+age_labeller <- function(variable,value){
+  return(age_names[value])}
 pA <- ggplot(drsq_v_a_ec,aes(minus_model_name,delta_rsq,  fill=minus_model_name))+
   geom_bar(stat="identity",color="black")+
   geom_hline(yintercept=0,color="black")+
@@ -313,8 +323,10 @@ pA <- ggplot(drsq_v_a_ec,aes(minus_model_name,delta_rsq,  fill=minus_model_name)
         axis.ticks.x=element_blank())+
   ylab("Delta R Squared")+
   xlab("Age Group (years)") +
-  facet_wrap(~age_bin,nrow=1, strip.position = "bottom")+
+  facet_wrap(~age_bin,nrow=1, labeller = age_labeller, strip.position = "bottom")+
   theme(legend.position=c(0.1,0.8))
+pA
+ggsave(here(root_path,"analysis","paper_2020","plots","drsqr_dimensions_valence_arousal_ec.png"),width=8,height=8)
 
 pB <- ggplot(unique(select(drsq_v_a_ec,age_bin,full_model_rsq)),aes(age_bin,full_model_rsq,  fill=age_bin))+
   geom_bar(stat="identity",color="black")+
@@ -331,8 +343,10 @@ pB <- ggplot(unique(select(drsq_v_a_ec,age_bin,full_model_rsq)),aes(age_bin,full
   xlab("Age Group")+
 theme(legend.position=c(0.1,0.8))
 plot_grid(pB,pA)
+ggsave(here(root_path,"analysis","paper_2020","plots","drsqr_dimensions_valence_arousal_ec_wModelRSquared.png"),width=15,height=7)
 
-#########################################################
+
+ #########################################################
 ####  Graphs: pos, neg, arousal, emotion category    ####
 #########################################################
 
@@ -342,6 +356,7 @@ for (age_bin in age_bins) {
   temp_drsqr <- compute_deltaRSQ_model(dist_long_byGroup,age_bin,predictors=c("dist_pos","dist_neg","dist_arousal","emotion_pair_same"),dv="average_dist")
   drsq_pn_a_ec <- bind_rows(drsq_pn_a_ec,temp_drsqr)
 }
+write.csv(drsq_pn_a_ec,here(root_path,"analysis","paper_2020","processed_data","drsqr_pn_a_ec.csv"),row.names=F)
 
 pA <- ggplot(drsq_pn_a_ec,aes(minus_model_name,delta_rsq,  fill=minus_model_name))+
   geom_bar(stat="identity",color="black")+
@@ -365,8 +380,10 @@ pA <- ggplot(drsq_pn_a_ec,aes(minus_model_name,delta_rsq,  fill=minus_model_name
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank())+
   ylab("Delta R Squared")+
-  facet_wrap(~age_bin,nrow=1)+
+  facet_wrap(~age_bin,nrow=1,labeller = age_labeller, strip.position = "bottom")+
   theme(legend.position=c(0.1,0.8))
+pA
+ggsave(here(root_path,"analysis","paper_2020","plots","drsqr_dimensions_posneg_arousal_ec.png"),width=8,height=8)
 
 pB <- ggplot(unique(select(drsq_pn_a_ec,age_bin,full_model_rsq)),aes(age_bin,full_model_rsq,  fill=age_bin))+
   geom_bar(stat="identity",color="black")+
@@ -383,3 +400,4 @@ pB <- ggplot(unique(select(drsq_pn_a_ec,age_bin,full_model_rsq)),aes(age_bin,ful
   xlab("Age Group")+
   theme(legend.position=c(0.1,0.8))
 plot_grid(pB,pA)
+ggsave(here(root_path,"analysis","paper_2020","plots","drsqr_dimensions_posneg_arousal_ec_wModelRSquared.png"),width=15,height=7)

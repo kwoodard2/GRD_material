@@ -35,10 +35,19 @@ avg_dist_diff_cat_across_subj <- avg_dist_diff_cat_by_subj %>%
   summarize(N=n(),average_dist=mean(avg_dist_diff,na.rm=T),ci_dist=qt(0.975, N-1)*sd(avg_dist_diff,na.rm=T)/sqrt(N))
 
 #Plot
+#clean labels for plot
+age_names <- list(
+  '3 to 4'="3-year-olds",
+  '4 to 5'="4-year-olds",
+  '5 to 6'="5-year-olds",
+  '6 to 7'="6-year-olds",
+  'adults'="adults")
+age_labeller <- function(variable,value){
+  return(age_names[value])}
 p <- ggplot(filter(avg_dist_diff_cat_across_subj, sort!="Practice"),aes(x=sort_name,y=average_dist,fill=age_bin,color=age_bin, linetype=sort_name))+
   geom_errorbar(aes(ymin=average_dist-ci_dist,ymax=average_dist+ci_dist),width=0,size=1)+
   geom_point(size=5)+
-  facet_wrap(~age_bin,nrow=1, strip.position = c("bottom"))+
+  facet_wrap(~age_bin,nrow=1, labeller = age_labeller, strip.position = c("bottom"))+
   geom_hline(yintercept=0)+
   theme(legend.position=c(.1,.8), legend.title = element_blank(),
         legend.margin = margin(.5,.5,.5,.5,"cm"),
@@ -52,7 +61,7 @@ p <- ggplot(filter(avg_dist_diff_cat_across_subj, sort!="Practice"),aes(x=sort_n
   ylab("Sorting by Emotion Categories \nLow<-------------------------------------------->High")+
   xlab("Age Group")+
   labs(linetype = "Sorting Phase") +
-  theme(axis.line = element_blank(),
+  theme(axis.line.x = element_blank(),
     axis.text.x  = element_blank(),
         axis.ticks.x= element_blank(),
         axis.title.x = element_text(size=20,face="bold"),
@@ -60,7 +69,7 @@ p <- ggplot(filter(avg_dist_diff_cat_across_subj, sort!="Practice"),aes(x=sort_n
         axis.title.y= element_text(size=18,face="bold"),
         strip.text.x = element_text(size=18)) #+
 p
-#ggsave(here(root_path,"analysis","paper_2020","plots","avg_difference_distance_emotion_within_between_byage2.jpg"),width=7,height=7)
+ggsave(here(root_path,"analysis","paper_2020","plots","avg_difference_distance_emotion_within_between_byage.png"),width=10,height=8)
 
 
 ####  Analyses  ####

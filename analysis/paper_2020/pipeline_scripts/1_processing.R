@@ -114,6 +114,10 @@ kids <- kids %>%
     subject == "p24" ~ "p124",
     TRUE ~ subject
   ))
+#remove participants with insufficient data
+#participant 167 has only 3 sorting responses in Sort 1 (and Practice phase responses)
+kids <- kids %>%
+  filter(participant!="subjCode167")
 
 #merge
 kids <- kids %>%
