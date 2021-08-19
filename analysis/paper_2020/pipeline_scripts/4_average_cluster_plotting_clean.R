@@ -6,9 +6,10 @@ library(dendroextras)
 library(cowplot)
 library(vegan)
 library(here)
-source("Grid_helper_functions.R")
 theme_set(theme_cowplot())
 root_path <- here()
+source(here(root_path,"analysis","paper_2020","Grid_helper_functions.R"))
+
 
 #What's in this file:
     # MDS solution for age group (kids versus adults)

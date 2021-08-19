@@ -25,9 +25,9 @@ library(cluster)
 library(factoextra)
 library(fossil)
 library(knitr)
-source("Grid_helper_functions.R")
 theme_set(theme_cowplot())
 root_path <- here()
+source(here("analysis","paper_2020","Grid_helper_functions.R"))
 
 #read in data
 subj_dist_long <- read.csv(here("analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
