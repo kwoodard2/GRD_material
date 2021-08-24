@@ -50,7 +50,7 @@ library(factoextra)
 library(rmcorr)
 source("Grid_helper_functions.R")
 theme_set(theme_cowplot())
-root_path <- here()
+root_path <- here(root_path,)
 
 subj_dist_long <- read.csv(here(root_path,"analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
 ratings <- read.csv(here(root_path,"analysis","paper_2020","processed_data","ratings_data.csv"))
@@ -1030,7 +1030,7 @@ sort1k_fit <- envfit(sort1_kids_cmd,ratings1, permutations = 1000)
 
 # prepare images for plot
 cur_cluster <- hclust(cur_dist)
-image_paths <- paste(here("experiment","stimuli_sort1"),"/",labels(cur_cluster),".png",sep="")
+image_paths <- paste(here(root_path,"experiment","stimuli_sort1"),"/",labels(cur_cluster),".png",sep="")
 cur_images <- data.frame(
   label=labels(cur_cluster),
   image=image_paths,
@@ -1236,7 +1236,7 @@ en_coord_cont = as.data.frame(scores(sort2k_fit, "vectors")) * ordiArrowMul(sort
 
 #create image paths
 cur_cluster <- hclust(cur_dist)
-image_paths <- paste(here("experiment","stimuli_sort2"),"/",labels(cur_cluster),".png",sep="")
+image_paths <- paste(here(root_path,"experiment","stimuli_sort2"),"/",labels(cur_cluster),".png",sep="")
 cur_images <- data.frame(
   label=labels(cur_cluster),
   image=image_paths,
@@ -2471,6 +2471,10 @@ Different Individuals Sort (NO FEEDBACK):
 (pause to look at pictures) 
 2.	Sort Starts
 “Now we’re going to play one last time. Remember people that feel the same kind of thing go together and people that feel a different kind of thing go apart”
+
+```{r echo=FALSE, out.width='100%'}
+knitr::include_graphics(here(root_path,"analysis","paper_2020","other_figures","grid_image.png"))
+```
 
 
 # Session Info
