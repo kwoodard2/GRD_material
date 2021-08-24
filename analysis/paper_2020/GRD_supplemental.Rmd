@@ -52,14 +52,20 @@ source("Grid_helper_functions.R")
 theme_set(theme_cowplot())
 root_path <- here()
 
-subj_dist_long <- read.csv(here("analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
-ratings <- read.csv(here("analysis","paper_2020","processed_data","ratings_data.csv"))
-ratings_pairs <- read.csv(here("analysis","paper_2020","processed_data","ratings_item_pairs.csv"))
+subj_dist_long <- read.csv(here(root_path,"analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
+ratings <- read.csv(here(root_path,"analysis","paper_2020","processed_data","ratings_data.csv"))
+ratings_pairs <- read.csv(here(root_path,"analysis","paper_2020","processed_data","ratings_item_pairs.csv"))
 
 ```
 
 # 1. Practice Phase 
-To assess whether participants in each age group demonstrated understanding of the grid task during the practice phase, we investigated the degree to which participants consistently arranged images belonging to the same superordinate categories (vehicles: car and bus; animals: squirrel and bird) closer together in space. We computed the average distance between images belonging to the same superordinate category (vehicles or animals) for each participant, and then compared the average distances for item pairs sharing the same category to item pairs from different categories. 3-year-olds did not consistently arrange items belonging to the same superordinate category closer together in space, (paired t-test: t(20) = -0.046, p = .96). This suggests that children in this age group were not consistently sorting images according to superordinate categories and may have struggled with the task instructions. However, we included 3-year-olds in all analyses as we had no reason to exclude this group a priori. All other age groups consistently sorted images belonging to the same category closer together in the grid space (4-year-olds: t(34) = 5.03, p < .001; 5-year-olds: t(27) = 5.42, p < .001; 6-year-olds: t(22) = 8.55, p < .001; adults: t(39) = 29.10, p < .001).
+To assess whether participants in each age group demonstrated understanding of the grid task during the practice phase, we investigated the degree to which participants consistently arranged images belonging to the same superordinate categories (vehicles: car and bus; animals: squirrel and bird) closer together in space. Below is an example of what a practice sort might look like:
+
+```{r echo=FALSE, out.width='100%'}
+knitr::include_graphics(here(root_path,"analysis","paper_2020","other_figures","example_practice.png"))
+```
+
+We computed the average distance between images belonging to the same superordinate category (vehicles or animals) for each participant, and then compared the average distances for item pairs sharing the same category to item pairs from different categories. 3-year-olds did not consistently arrange items belonging to the same superordinate category closer together in space, (paired t-test: t(20) = -0.046, p = .96). This suggests that children in this age group were not consistently sorting images according to superordinate categories and may have struggled with the task instructions. However, we included 3-year-olds in all analyses as we had no reason to exclude this group a priori. All other age groups consistently sorted images belonging to the same category closer together in the grid space (4-year-olds: t(34) = 5.03, p < .001; 5-year-olds: t(27) = 5.42, p < .001; 6-year-olds: t(22) = 8.55, p < .001; adults: t(39) = 29.10, p < .001).
 
 3-year-olds during the practice phase did not appear to use superordinate categories to guide their similarity judgments. Rather, children in this age range appeared to approach the task with many different strategies: some did appear to use superordinate categories like animals and vehicles (n = 5), some separated each image far apart, viewing each stimulus as distinct (n = 4), some appeared to focus on other perceptual features, like color, to guide their decisions (n = 5), and some appeared to sort at random (n = 7). However, our observations in this regard are subjective and future research will need to adjust the task to better understand and tease apart possibilities for how these youngest children understood the stimuli.
 
@@ -866,8 +872,8 @@ ggplot(aes(x=dist_neg,y=dist,color=age_bin2,fill=age_bin2), data=filter(dimensio
 
 ```{r}
 #load in data
-drsq_v_a_ec <- read.csv(here("analysis","paper_2020","processed_data","drsqr_v_a_ec.csv"))
-drsq_pn_a_ec <- read.csv(here("analysis","paper_2020","processed_data","drsqr_pn_a_ec.csv"))
+drsq_v_a_ec <- read.csv(here(root_path,"analysis","paper_2020","processed_data","drsqr_v_a_ec.csv"))
+drsq_pn_a_ec <- read.csv(here(root_path,"analysis","paper_2020","processed_data","drsqr_pn_a_ec.csv"))
 
 drsq_v_a_ec <- drsq_v_a_ec %>% mutate(age_bin=case_when(
   age_bin == "3 to 4" ~ "3 y/o",
@@ -2352,7 +2358,7 @@ ggplot(data=s2_cluster_dL,aes(x=cluster,y=height, fill=age_group)) + geom_bar(st
 Here we present more information about the ratings for all of the different images. Valence and arousal were rated on 7-point Likert scales. Positivity and Negativity where rated on a 4-point scale using the evaluative space grid. 
 ```{r rating data prep}
 library(gmodels)
-raw_ratings <- read.csv(here("analysis","paper_2020","processed_data","ratings_raw.csv"))
+raw_ratings <- read.csv(here(root_path,"analysis","paper_2020","processed_data","ratings_raw.csv"))
 
 ratings_dL <- raw_ratings %>% group_by(participant,image) %>% gather(key = rating_type, value = response, arousal,valence,negativity,positivity,negativity)
 ```
