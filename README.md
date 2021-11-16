@@ -1,11 +1,11 @@
 # Grid-Task
 Stimuli, data, and analysis scripts for a study using the spatial arrangement method to investigate changes in children's emotion knowledge across development.
 
-Anonymous Authors (in prep). The Representation of Emotion Knowledge Across Development.
+Woodard, K., Zettersten, M., & Pollak, S.D. (accepted). The representation of emotion knowledge across development. Child Development.
 
 **Abstract**
 
-The present task sought to better understand how children spontaneously represent and prioritize information about facial cues of emotion. Children sorted facial cues of emotion based on judgments of similarity in a variation of the spatial arrangement method. The task and analyses circumvented common limitations in the study of children’s emotion knowledge by not requiring emotion vocabulary terms and by conducting both top-down, supervised and bottom-up, unsupervised analyses. We found children’s organization of emotion knowledge gradually became more aligned with adults across development and relied on valence (both bipolar and bivariate), arousal, and emotion category to guide their similarity judgments. Furthermore, children initially used broader valence-based distinctions to guide their emotion judgments that became more discrete through an increase and refinement in the use of valence and emotion categories. The central role of valence in participants’ similarity judgements across ages, even among adults, suggests that valence forms the basis for how people structure perceptual information about emotions.
+The present study examined how children spontaneously represent facial cues associated with emotion. 106 three- to six-year-old children (48 male, 58 female; 9.4% Asian, 84.0% White, 6.6% more than one race) and 40 adults (10 male, 30 female; 10% Hispanic, 30% Asian, 2.5% Black, 57.5% White) were recruited from a Midwestern city (2019 to 2020), and sorted emotion cues in a spatial arrangement method that assesses emotion knowledge without reliance on emotion vocabulary. Using supervised and unsupervised analyses, the study found evidence for continuities and gradual changes in children’s emotion knowledge compared to adults. Emotion knowledge develops through an incremental learning process in which children change their representations using combinations of factors—particularly valence—that are weighted differently across development.
 
 ## Repository Structure
 
@@ -38,4 +38,4 @@ https://rpubs.com/zcm/GRD_supplemental
 
 ## Questions
 
-Feel free to contact us at **[removed]** or **[removed]** if you have any comments or questions about the data or the analyses.
+Feel free to contact us at **kwoodard2@wisc.edu** or **martincz@princeton.edu** if you have any comments or questions about the data or the analyses.
