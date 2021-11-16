@@ -1,7 +1,7 @@
 # Grid-Task
 Stimuli, data, and analysis scripts for a study using the spatial arrangement method to investigate changes in children's emotion knowledge across development.
 
-Woodard, K., Zettersten, M., & Pollak, S.D. (accepted). The representation of emotion knowledge across development. Child Development.
+Woodard, K., Zettersten, M., & Pollak, S.D. (accepted). The representation of emotion knowledge across development. *Child Development.*
 
 **Abstract**
 
