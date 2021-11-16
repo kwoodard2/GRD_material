@@ -49,7 +49,7 @@ root_path <- here()
 
 Analysis walkthrough for the paper 
 
-Anonymous Authors (in prep). Developmental changes in children’s representation of facial cues of emotion.
+Woodard, K., Zettersten, M., & Pollak, S.D. (accepted). The representation of emotion knowledge across development. Child Development.
 
 For more background information and the underlying data, visit the OSF repository for this report: <a href="https://osf.io/7bkgp/?view_only=943f7b23d25b4b3595240894220130cd" target="_blank">OSF site</a>
 

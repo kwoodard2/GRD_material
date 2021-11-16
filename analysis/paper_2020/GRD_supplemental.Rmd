@@ -1,7 +1,6 @@
 ---
 title: "Supplemental Materials"
-author: "Anonymized for peer review"
-#date: "12/21/2020"
+author: "Kristina Woodard, Martin Zettersten, & Seth Pollak"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   html_document:
@@ -50,13 +49,21 @@ library(factoextra)
 library(rmcorr)
 source("Grid_helper_functions.R")
 theme_set(theme_cowplot())
-root_path <- here(root_path,)
+root_path <- here()
 
 subj_dist_long <- read.csv(here(root_path,"analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
 ratings <- read.csv(here(root_path,"analysis","paper_2020","processed_data","ratings_data.csv"))
 ratings_pairs <- read.csv(here(root_path,"analysis","paper_2020","processed_data","ratings_item_pairs.csv"))
 
 ```
+
+This document contains supplemental materials for the paper:
+
+Woodard, K., Zettersten, M., & Pollak, S.D. (accepted). The representation of emotion knowledge across development. Child Development.
+
+See the OSF site for the paper for further information: 
+
+[https://osf.io/7bkgp/](https://osf.io/7bkgp/)
 
 # 1. Practice Phase 
 To assess whether participants in each age group demonstrated understanding of the grid task during the practice phase, we investigated the degree to which participants consistently arranged images belonging to the same superordinate categories (vehicles: car and bus; animals: squirrel and bird) closer together in space. Below is an example of what a practice sort might look like:
