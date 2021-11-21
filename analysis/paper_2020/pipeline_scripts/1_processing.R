@@ -135,7 +135,10 @@ kids <- kids %>%
 
 #clean adults subject id
 adults <- adults %>%
-  mutate(participant = as.character(participant),subject = paste("p",participant,sep=""))
+  mutate(participant = case_when(
+    participant == "417" ~ "217",
+    TRUE ~ as.character(participant))) %>%
+  mutate(subject=paste("p",participant,sep=""))
 
 adults$age_bin <- "adults"
 kids$age_group <- "kids"

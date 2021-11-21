@@ -25,9 +25,9 @@ library(cluster)
 library(factoextra)
 library(fossil)
 library(knitr)
+source(here("analysis","paper_2020","Grid_helper_functions.R"))
 theme_set(theme_cowplot())
 root_path <- here()
-source(here("analysis","paper_2020","Grid_helper_functions.R"))
 
 #read in data
 subj_dist_long <- read.csv(here("analysis","paper_2020","processed_data","Grid_subject_distance_item_pairs.csv"))
@@ -246,7 +246,7 @@ dev.off()
 #Correlation
 sort1_compare <- dendlist("3-year-olds" = s1_3_dend, "4-year-olds" = s1_4_dend, "5-year-olds" = s1_5_dend, "6-year-olds" = s1_6_dend, "Adults" = s1_a_dend)
 ggcorrplot(cor.dendlist(sort1_compare), type = "lower", lab=TRUE, outline.color="black", ggtheme = ggplot2::theme_void())
-ggsave(here(root_path,"analysis","paper_2020","plots","sort1_dendro_corr.png"),width=5,height=3.6)
+ggsave(here(root_path,"analysis","paper_2020","plots","sort1_dendro_corr.png"),width=5,height=3.6,bg="white")
 
 
 similarity_to_adults_s1 <- data.frame(
@@ -320,7 +320,7 @@ dev.off()
 #Correlation
 sort2_compare <- dendlist("3-year-olds" = s2_3_dend, "4-year-olds" = s2_4_dend, "5-year-olds" = s2_5_dend, "6-year-olds" = s2_6_dend, "Adults" = s2_a_dend)
 ggcorrplot(cor.dendlist(sort2_compare), type = "lower", lab=TRUE, outline.color="black", ggtheme = ggplot2::theme_void())
-ggsave(here(root_path,"analysis","paper_2020","plots","sort2_dendro_corr.png"),width=5,height=3.6)
+ggsave(here(root_path,"analysis","paper_2020","plots","sort2_dendro_corr.png"),width=5,height=3.6,bg="white")
 
 
 # FM Index and AR Index

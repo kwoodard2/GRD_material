@@ -1,6 +1,6 @@
 ---
 title: "Developmental changes in children’s representation of facial cues of emotion"
-author: "Anonymized for peer review"
+author: "Kristina Woodard, Martin Zettersten, & Seth Pollak"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
@@ -51,7 +51,7 @@ Analysis walkthrough for the paper
 
 Woodard, K., Zettersten, M., & Pollak, S.D. (accepted). The representation of emotion knowledge across development. Child Development.
 
-For more background information and the underlying data, visit the OSF repository for this report: <a href="https://osf.io/7bkgp/?view_only=943f7b23d25b4b3595240894220130cd" target="_blank">OSF site</a>
+For more background information and the underlying data, visit the OSF repository for this report: <a href="https://osf.io/7bkgp/" target="_blank">OSF site</a>
 
 ## Emotion Categories {.tabset}
 
@@ -1287,35 +1287,35 @@ clusters_by_group %>% filter(sort=="Sort2"&age_group=="adults") %>% pull(model_v
 ```{r}
 #children
 ## 3 to 4
-clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="3 to 4") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+clusters_by_bin %>% filter(sort=="Sort1"&age_bin=="3 to 4") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
 ```
 
 ####### 4-year-olds
 
 ```{r}
 ## 4 to 5
-clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="4 to 5") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+clusters_by_bin %>% filter(sort=="Sort1"&age_bin=="4 to 5") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
 ```
 
 ####### 5-year-olds
 
 ```{r}
 ## 5 to 6
-clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="5 to 6") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+clusters_by_bin %>% filter(sort=="Sort1"&age_bin=="5 to 6") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
 ```
 
 ####### 6-year-olds
 
 ```{r}
 ## 6 to 7
-clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="6 to 7") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+clusters_by_bin %>% filter(sort=="Sort1"&age_bin=="6 to 7") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
 ```
 
 ####### adults
 
 ```{r}
 # adults
-clusters_by_bin %>% filter(sort=="Sort2"&age_bin=="adults") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
+clusters_by_bin %>% filter(sort=="Sort1"&age_bin=="adults") %>% pull(model_valence) %>% pluck(1) %>% Anova(type="III")
 ```
 
 ###### Different Individuals

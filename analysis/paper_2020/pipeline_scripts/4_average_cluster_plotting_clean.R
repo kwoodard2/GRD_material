@@ -10,7 +10,6 @@ theme_set(theme_cowplot())
 root_path <- here()
 source(here(root_path,"analysis","paper_2020","Grid_helper_functions.R"))
 
-
 #What's in this file:
     # MDS solution for age group (kids versus adults)
     # overlaying rating vectors on MDS plot (vegan package, envfit)
@@ -116,7 +115,7 @@ p2 <- ggplot(data=cur_cmd,aes(X1,X2))+
 
 #plot adults and children together
 plot_grid(p1,p2,labels=c("A","B"),label_size=20)
-ggsave(here(root_path,"analysis","paper_2020","plots","cmd_kids_adults_sort1_vegan.png"),width=9, height=5)
+ggsave(here(root_path,"analysis","paper_2020","plots","cmd_kids_adults_sort1_vegan.png"),width=9, height=5,bg="white")
 
 #### Plot MDS - Kids: Sorting Different Individuals ####
 cur_dist <- filter(avg_dist,sort=="Sort2"&age_group=="kids")$dist_obj[[1]]
@@ -202,7 +201,7 @@ p4 <- ggplot(data=cur_cmd,aes(X1,X2))+
 
 
 plot_grid(p3,p4,labels=c("C","D"),label_size=20)
-ggsave(here(root_path,"analysis","paper_2020","plots","cmd_kids_adults_sort2_vegan.png"),width=9, height=5)
+ggsave(here(root_path,"analysis","paper_2020","plots","cmd_kids_adults_sort2_vegan.png"),width=9, height=5,bg="white")
 
 plot_grid(p1,p2,p3,p4,nrow=2,labels=c("A","B","C","D"),label_size=20)
-ggsave(here(root_path,"analysis","paper_2020","plots","cmd_kids_adults_sort1and2_vegan.png"),width=10, height=10)
+ggsave(here(root_path,"analysis","paper_2020","plots","cmd_kids_adults_sort1and2_vegan.png"),width=10, height=10,bg="white")

@@ -168,4 +168,4 @@ p2 <- ggplot(filter(comparison_data, sort_name=="Different Individuals"),aes(x=r
     strip.text.x = element_text(size=18),
     plot.title = element_text(hjust = 0.5,size=20))
 plot_grid(p1,p2,nrow=1,labels=c("A","B"),label_size=20)
-ggsave(here(root_path,"analysis","paper_2020","final_plots","response_letter_fig2.png"),width=12,height=6.75)
+ggsave(here(root_path,"analysis","paper_2020","final_plots","response_letter_fig2.png"),width=12,height=6.75,bg="white")

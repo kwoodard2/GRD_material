@@ -326,7 +326,7 @@ pA <- ggplot(drsq_v_a_ec,aes(minus_model_name,delta_rsq,  fill=minus_model_name)
   facet_wrap(~age_bin,nrow=1, labeller = age_labeller, strip.position = "bottom")+
   theme(legend.position=c(0.1,0.8))
 pA
-ggsave(here(root_path,"analysis","paper_2020","plots","drsqr_dimensions_valence_arousal_ec.png"),width=8,height=8)
+ggsave(here(root_path,"analysis","paper_2020","plots","drsqr_dimensions_valence_arousal_ec.png"),width=8,height=8,bg="white")
 
 pB <- ggplot(unique(select(drsq_v_a_ec,age_bin,full_model_rsq)),aes(age_bin,full_model_rsq,  fill=age_bin))+
   geom_bar(stat="identity",color="black")+
@@ -343,7 +343,7 @@ pB <- ggplot(unique(select(drsq_v_a_ec,age_bin,full_model_rsq)),aes(age_bin,full
   xlab("Age Group")+
 theme(legend.position=c(0.1,0.8))
 plot_grid(pB,pA)
-ggsave(here(root_path,"analysis","paper_2020","plots","drsqr_dimensions_valence_arousal_ec_wModelRSquared.png"),width=15,height=7)
+ggsave(here(root_path,"analysis","paper_2020","plots","drsqr_dimensions_valence_arousal_ec_wModelRSquared.png"),width=15,height=7,bg="white")
 
 
  #########################################################
@@ -383,7 +383,7 @@ pA <- ggplot(drsq_pn_a_ec,aes(minus_model_name,delta_rsq,  fill=minus_model_name
   facet_wrap(~age_bin,nrow=1,labeller = age_labeller, strip.position = "bottom")+
   theme(legend.position=c(0.1,0.8))
 pA
-ggsave(here(root_path,"analysis","paper_2020","plots","drsqr_dimensions_posneg_arousal_ec.png"),width=8,height=8)
+ggsave(here(root_path,"analysis","paper_2020","plots","drsqr_dimensions_posneg_arousal_ec.png"),width=8,height=8,bg="white")
 
 pB <- ggplot(unique(select(drsq_pn_a_ec,age_bin,full_model_rsq)),aes(age_bin,full_model_rsq,  fill=age_bin))+
   geom_bar(stat="identity",color="black")+
@@ -400,4 +400,4 @@ pB <- ggplot(unique(select(drsq_pn_a_ec,age_bin,full_model_rsq)),aes(age_bin,ful
   xlab("Age Group")+
   theme(legend.position=c(0.1,0.8))
 plot_grid(pB,pA)
-ggsave(here(root_path,"analysis","paper_2020","plots","drsqr_dimensions_posneg_arousal_ec_wModelRSquared.png"),width=15,height=7)
+ggsave(here(root_path,"analysis","paper_2020","plots","drsqr_dimensions_posneg_arousal_ec_wModelRSquared.png"),width=15,height=7,bg="white")

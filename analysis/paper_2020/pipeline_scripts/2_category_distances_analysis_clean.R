@@ -69,7 +69,7 @@ p <- ggplot(filter(avg_dist_diff_cat_across_subj, sort!="Practice"),aes(x=sort_n
         axis.title.y= element_text(size=18,face="bold"),
         strip.text.x = element_text(size=18)) #+
 p
-ggsave(here(root_path,"analysis","paper_2020","plots","avg_difference_distance_emotion_within_between_byage.png"),width=10,height=8)
+ggsave(here(root_path,"analysis","paper_2020","plots","avg_difference_distance_emotion_within_between_byage.png"),width=10,height=8,bg="white")
 
 
 ####  Analyses  ####
